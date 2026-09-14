@@ -16,10 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if tap.hasPermission {
             tap.start()
         } else {
-            // Only interrupt with the actual system prompts once, ever —
-            // repeating them on every launch while the user just hasn't
-            // gotten to Settings yet is just nagging. Once shown, later
-            // launches poll silently until the grant shows up.
+            // Only show the actual system prompts once ever — re-nagging on
+            // every launch while the user hasn't gotten to Settings yet is
+            // annoying. After that, just poll silently.
             if !Config.hasRequestedPermissions {
                 tap.requestPermission()
                 Config.hasRequestedPermissions = true

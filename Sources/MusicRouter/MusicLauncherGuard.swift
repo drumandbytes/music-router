@@ -40,16 +40,11 @@ final class MusicLauncherGuard {
             Self.blockedBundleIDs.contains(bundleID)
         else { return }
 
-        // Open the replacement first, terminate second — `forceTerminate()`
-        // doesn't block on Music actually finishing quitting, but ordering
-        // it after openReplacement noticeably shortens how long Music is
-        // visibly on screen before the replacement takes over.
-        //
-        // `willLaunchApplicationNotification` fires earlier (before Music
-        // is visible at all), but at that point the NSRunningApplication
-        // may not have a live process yet, so forceTerminate() isn't
-        // reliably guaranteed to work — not worth the risk over the flicker
-        // this already cuts down.
+        // Replacement first, terminate second — cuts down how long Music is
+        // visibly on screen before it takes over. (Could react even earlier
+        // via willLaunchApplicationNotification, but the app may not have a
+        // live process yet at that point, so forceTerminate() isn't
+        // guaranteed to work there — not worth it for the extra flicker.)
         Config.openReplacement()
         app.forceTerminate()
     }

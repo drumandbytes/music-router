@@ -14,15 +14,12 @@ final class StatusBarController {
             accessibilityDescription: "Music Router"
         )
         statusItem.menu = buildMenu()
-        // A fresh launch always means the user just started the app, so it's
-        // the natural place to undo a previous "Hide Menu Bar Icon" — the
-        // hidden icon itself has no way to offer this, so a relaunch has to.
         unhideIfNeeded()
     }
 
-    /// Un-hides the icon if it was previously hidden — called on every
-    /// (re)launch, since a hidden `NSStatusItem` has no menu of its own to
-    /// undo the hide from.
+    /// A hidden `NSStatusItem` has no menu of its own to undo the hide from,
+    /// so relaunching the app (fresh launch or reopening a running instance)
+    /// is the only way back — called from both.
     func unhideIfNeeded() {
         guard Config.menuBarIconHidden else { return }
         Config.menuBarIconHidden = false
