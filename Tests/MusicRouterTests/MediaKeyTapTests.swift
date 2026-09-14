@@ -38,12 +38,3 @@ final class MediaKeyTapTests: XCTestCase {
         XCTAssertNil(result)
     }
 }
-
-extension MediaKeyTap.MediaKey: Equatable {
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        switch (lhs, rhs) {
-        case (.playPause, .playPause), (.next, .next), (.previous, .previous): return true
-        default: return false
-        }
-    }
-}

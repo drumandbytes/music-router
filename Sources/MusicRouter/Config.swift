@@ -45,22 +45,17 @@ enum Config {
     /// A curated shortcut list for the "Replacement App" menu. Native apps
     /// are filtered to ones actually installed; web players always show
     /// since there's nothing to check. "Choose App…" covers anything else.
-    struct PredefinedApp {
-        let name: String
-        let target: String
-    }
-
-    static let predefinedApps: [PredefinedApp] = [
-        PredefinedApp(name: "Spotify", target: "/Applications/Spotify.app"),
-        PredefinedApp(name: "TIDAL", target: "/Applications/TIDAL.app"),
-        PredefinedApp(name: "VLC", target: "/Applications/VLC.app"),
-        PredefinedApp(name: "YouTube Music", target: "https://music.youtube.com/"),
-        PredefinedApp(name: "Deezer", target: "https://www.deezer.com/"),
-        PredefinedApp(name: "SoundCloud", target: "https://soundcloud.com/"),
+    static let predefinedApps: [(name: String, target: String)] = [
+        (name: "Spotify", target: "/Applications/Spotify.app"),
+        (name: "TIDAL", target: "/Applications/TIDAL.app"),
+        (name: "VLC", target: "/Applications/VLC.app"),
+        (name: "YouTube Music", target: "https://music.youtube.com/"),
+        (name: "Deezer", target: "https://www.deezer.com/"),
+        (name: "SoundCloud", target: "https://soundcloud.com/"),
     ]
 
     /// Installed native apps + all web players, in `predefinedApps` order.
-    static var availablePredefinedApps: [PredefinedApp] {
+    static var availablePredefinedApps: [(name: String, target: String)] {
         predefinedApps.filter { isWebURL($0.target) || FileManager.default.fileExists(atPath: $0.target) }
     }
 

@@ -19,21 +19,19 @@ import CoreGraphics
 final class MediaKeyTap {
     typealias Handler = (MediaKey, Bool) -> Void
 
-    enum MediaKey {
-        case playPause
-        case next
-        case previous
+    // Raw values are the IOKit/hidsystem NX_KEYTYPE_* constants (ev_keymap.h)
+    // for media keys — lets `decode` below go straight from the packed key
+    // code to a case via `MediaKey(rawValue:)`, no separate constants/switch.
+    enum MediaKey: Int32 {
+        case playPause = 16
+        case next = 17
+        case previous = 18
     }
 
     private let handler: Handler
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var healthCheckTimer: Timer?
-
-    // IOKit/hidsystem NX_KEYTYPE_* constants (ev_keymap.h) for media keys.
-    private static let keyTypePlay: Int32 = 16
-    private static let keyTypeNext: Int32 = 17
-    private static let keyTypePrevious: Int32 = 18
 
     // NSEvent.EventType.systemDefined.rawValue — not exposed on CGEventType,
     // so it has to be matched/masked by raw numeric value instead.
@@ -135,11 +133,7 @@ final class MediaKeyTap {
         let keyFlags = data1 & 0x0000_FFFF
         let isPressed = ((keyFlags & 0xFF00) >> 8) == 0xA
 
-        switch keyCode {
-        case keyTypePlay: return (.playPause, isPressed)
-        case keyTypeNext: return (.next, isPressed)
-        case keyTypePrevious: return (.previous, isPressed)
-        default: return nil
-        }
+        guard let mediaKey = MediaKey(rawValue: keyCode) else { return nil }
+        return (mediaKey, isPressed)
     }
 }

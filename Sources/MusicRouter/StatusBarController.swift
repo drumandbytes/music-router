@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import UniformTypeIdentifiers
 
 /// Menu bar icon: shows current state, lets you toggle blocking, pick a
@@ -50,7 +51,7 @@ final class StatusBarController {
             keyEquivalent: ""
         )
         loginItem.target = self
-        loginItem.state = LoginItem.isEnabled ? .on : .off
+        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(loginItem)
 
         let hideItem = NSMenuItem(
@@ -135,9 +136,16 @@ final class StatusBarController {
     }
 
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
-        let newValue = !LoginItem.isEnabled
-        LoginItem.setEnabled(newValue)
-        sender.state = LoginItem.isEnabled ? .on : .off
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            NSLog("MusicRouter: failed to toggle login item: \(error)")
+        }
+        sender.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
     @objc private func hideMenuBarIcon() {

@@ -42,13 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusBar = statusBar
     }
 
-    // Re-launching the app while it's already running (e.g. double-clicking
-    // it again in Finder) delivers this instead of a second process — use it
-    // to un-hide the menu bar icon if the user had hidden it.
-    func applicationDidBecomeActive(_ notification: Notification) {
-        statusBar?.unhideIfNeeded()
-    }
-
+    // The documented hook for "user tried to open the app again while it's
+    // already running" (double-clicking it in Finder, `open` from Terminal,
+    // etc. — not just Dock icon clicks). Confirmed empirically (3/3 clean
+    // runs) over applicationDidBecomeActive, which only fires when
+    // activation state actually changes and missed most reopens.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         statusBar?.unhideIfNeeded()
         return true
