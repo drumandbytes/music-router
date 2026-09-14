@@ -120,6 +120,14 @@ final class StatusBarController {
         chooseItem.target = self
         submenu.addItem(chooseItem)
 
+        let customURLItem = NSMenuItem(
+            title: "Custom URL…",
+            action: #selector(chooseCustomURL),
+            keyEquivalent: ""
+        )
+        customURLItem.target = self
+        submenu.addItem(customURLItem)
+
         return submenu
     }
 
@@ -161,6 +169,28 @@ final class StatusBarController {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Config.replacement = url.path
+        statusItem.menu = buildMenu()
+    }
+
+    @objc private func chooseCustomURL() {
+        let alert = NSAlert()
+        alert.messageText = "Custom Replacement URL"
+        alert.informativeText = "Opened instead of Music.app, e.g. a web player not in the list above."
+        alert.addButton(withTitle: "Set")
+        alert.addButton(withTitle: "Cancel")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        field.placeholderString = "https://example.com/player"
+        if let current = Config.replacement, Config.isWebURL(current) {
+            field.stringValue = current
+        }
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Config.isWebURL(text) else { return }
+        Config.replacement = text
         statusItem.menu = buildMenu()
     }
 }

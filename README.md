@@ -76,19 +76,17 @@ Click the note icon for:
 - **Enabled** — toggle both interception mechanisms on/off.
 - **Replacement App** — a curated shortlist (Spotify, TIDAL, VLC, YouTube
   Music, Deezer, SoundCloud — native apps only show if actually installed),
-  **Choose App…** for anything else, or **Block Only** for no redirect.
+  **Choose App…** for any other local app, **Custom URL…** for any other web
+  player, or **Block Only** for no redirect.
 - **Launch at Login** — via `SMAppService`, no manual System Settings step.
 - **Hide Menu Bar Icon** — since a hidden `NSStatusItem` has no menu of its
   own to undo this from, relaunching the app (even while it's already
   running — double-click it again in Finder) un-hides it.
 
-Same configuration is also reachable from the terminal:
-
-```bash
-defaults write dev.drumandbytes.musicrouter replacement /Applications/Spotify.app
-defaults write dev.drumandbytes.musicrouter replacement https://music.youtube.com/
-defaults delete dev.drumandbytes.musicrouter replacement   # block-only, no redirect
-```
+The menu covers everything; `defaults write dev.drumandbytes.musicrouter
+replacement <path-or-url>` (and `defaults delete … replacement` for
+block-only) works too if you'd rather script it — e.g. from your own
+dotfiles setup.
 
 ## Testing
 
