@@ -89,8 +89,9 @@ final class StatusBarController {
         submenu.addItem(.separator())
 
         for app in Config.availablePredefinedApps {
+            let title = Config.isWebURL(app.target) ? "\(app.name) (Web)" : app.name
             let item = NSMenuItem(
-                title: app.name,
+                title: title,
                 action: #selector(selectPredefinedApp(_:)),
                 keyEquivalent: ""
             )
