@@ -1,0 +1,79 @@
+import AppKit
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let launcherGuard = MusicLauncherGuard()
+    private var mediaKeyTap: MediaKeyTap?
+    private var statusBar: StatusBarController?
+    private var permissionCheckTimer: Timer?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let tap = MediaKeyTap { [weak self] key, isPressed in
+            guard isPressed else { return }
+            self?.handleMediaKey(key)
+        }
+        mediaKeyTap = tap
+
+        if tap.hasPermission {
+            tap.start()
+        } else {
+            // Only interrupt with the actual system prompts once, ever —
+            // repeating them on every launch while the user just hasn't
+            // gotten to Settings yet is just nagging. Once shown, later
+            // launches poll silently until the grant shows up.
+            if !Config.hasRequestedPermissions {
+                tap.requestPermission()
+                Config.hasRequestedPermissions = true
+            }
+            permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
+                guard let self, let tap = self.mediaKeyTap else { timer.invalidate(); return }
+                if tap.hasPermission {
+                    tap.start()
+                    timer.invalidate()
+                    self.permissionCheckTimer = nil
+                }
+            }
+        }
+
+        launcherGuard.start()
+
+        let statusBar = StatusBarController()
+        statusBar.onToggle = { [weak self] enabled in
+            self?.setEnabled(enabled)
+        }
+        self.statusBar = statusBar
+    }
+
+    // Re-launching the app while it's already running (e.g. double-clicking
+    // it again in Finder) delivers this instead of a second process — use it
+    // to un-hide the menu bar icon if the user had hidden it.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        statusBar?.unhideIfNeeded()
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        statusBar?.unhideIfNeeded()
+        return true
+    }
+
+    private func handleMediaKey(_ key: MediaKeyTap.MediaKey) {
+        // Phase 1: the key press is swallowed (Music.app never launches for
+        // it at all), so open the configured replacement in its place — same
+        // behavior as the launch-then-kill path, just without the flicker.
+        //
+        // TODO(phase 2): once more than one app is playing, route to
+        // whichever is actually "Now Playing" instead of always the fixed
+        // replacement, via the MediaRemote adapter technique (see README) —
+        // and forward play/pause/next/previous specifically, not just "open".
+        Config.openReplacement()
+    }
+
+    private func setEnabled(_ enabled: Bool) {
+        if enabled {
+            launcherGuard.start()
+            mediaKeyTap?.start()
+        } else {
+            launcherGuard.stop()
+            mediaKeyTap?.stop()
+        }
+    }
+}

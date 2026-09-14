@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and sign
+        run: scripts/build-app.sh "${{ steps.version.outputs.version }}"
+
+      - name: Zip app
+        id: zip
+        run: |
+          cd build
+          zip -ry "MusicRouter-${{ steps.version.outputs.version }}.zip" MusicRouter.app
+          echo "sha256=$(shasum -a 256 MusicRouter-${{ steps.version.outputs.version }}.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "build/MusicRouter-${{ steps.version.outputs.version }}.zip" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
+
+      # Short-lived token for the dnb-robot GitHub App, scoped to this repo and
+      # homebrew-tap. The default GITHUB_TOKEN can't write to another repo.
+      - uses: actions/create-github-app-token@v3
+        id: app_token
+        with:
+          client-id: ${{ secrets.DNB_ROBOT_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          owner: drumandbytes
+          repositories: music-router,homebrew-tap
+
+      - name: Update cask in homebrew-tap
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA="${{ steps.zip.outputs.sha256 }}"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/drumandbytes/homebrew-tap.git" /tmp/homebrew-tap
+          cd /tmp/homebrew-tap
+
+          CASK_FILE="Casks/music-router.rb"
+          sed -i '' -E "s/(version \")[^\"]+(\")/\1${VERSION}\2/" "$CASK_FILE"
+          sed -i '' -E "s/(sha256 \")[^\"]+(\")/\1${SHA}\2/" "$CASK_FILE"
+
+          git config user.name "dnb-robot[bot]"
+          git config user.email "4773076+dnb-robot[bot]@users.noreply.github.com"
+          git add "$CASK_FILE"
+          git commit -m "chore(cask): bump music-router to ${VERSION}"
+          git push
