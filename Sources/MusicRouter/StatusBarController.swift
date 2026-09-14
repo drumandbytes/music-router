@@ -15,7 +15,14 @@ final class StatusBarController {
             accessibilityDescription: "Music Router"
         )
         statusItem.menu = buildMenu()
+        updateIcon()
         unhideIfNeeded()
+    }
+
+    // appearsDisabled dims the button image natively — no separate
+    // "off" icon asset needed.
+    private func updateIcon() {
+        statusItem.button?.appearsDisabled = !isEnabled
     }
 
     /// A hidden `NSStatusItem` has no menu of its own to undo the hide from,
@@ -133,6 +140,7 @@ final class StatusBarController {
     @objc private func toggleEnabled(_ sender: NSMenuItem) {
         isEnabled.toggle()
         sender.state = isEnabled ? .on : .off
+        updateIcon()
         onToggle?(isEnabled)
     }
 
