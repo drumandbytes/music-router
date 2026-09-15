@@ -28,14 +28,22 @@ jobs:
           zip -ry "MusicRouter-${{ steps.version.outputs.version }}.zip" MusicRouter.app
           echo "sha256=$(shasum -a 256 MusicRouter-${{ steps.version.outputs.version }}.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            "build/MusicRouter-${{ steps.version.outputs.version }}.zip" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes
+          set -euo pipefail
+          ASSET="build/MusicRouter-${{ steps.version.outputs.version }}.zip"
+          TAG="${{ github.ref_name }}"
+
+          # release-please creates the release (with its own changelog) before
+          # this tag push ever reaches here — attach the build to that one
+          # instead of trying to create a competing release for the same tag.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET"
+          else
+            gh release create "$TAG" "$ASSET" --title "$TAG" --generate-notes
+          fi
 
       # Short-lived token for the dnb-robot GitHub App, scoped to this repo and
       # homebrew-tap. The default GITHUB_TOKEN can't write to another repo.
