@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/drumandbytes/music-router/compare/v0.2.0...v0.3.0) (2026-09-15)
+
+
+### Features
+
+* add About and Help menu items ([7d6d4f9](https://github.com/drumandbytes/music-router/commit/7d6d4f9cac6e5ec69b06d37b6f60952121157e54))
+
 ## [0.2.0](https://github.com/drumandbytes/music-router/compare/v0.1.0...v0.2.0) (2026-09-15)
 
 
