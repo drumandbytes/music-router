@@ -71,6 +71,24 @@ final class StatusBarController {
 
         menu.addItem(.separator())
 
+        let aboutItem = NSMenuItem(
+            title: "About Music Router",
+            action: #selector(showAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
+        let helpItem = NSMenuItem(
+            title: "Help",
+            action: #selector(showHelp),
+            keyEquivalent: ""
+        )
+        helpItem.target = self
+        menu.addItem(helpItem)
+
+        menu.addItem(.separator())
+
         menu.addItem(NSMenuItem(
             title: "Quit Music Router",
             action: #selector(NSApplication.terminate(_:)),
@@ -206,5 +224,16 @@ final class StatusBarController {
         guard Config.isWebURL(text) else { return }
         Config.replacement = text
         statusItem.menu = buildMenu()
+    }
+
+    @objc private func showAbout() {
+        // Accessory apps (no Dock icon) don't auto-activate — without this
+        // the panel can open behind whatever's currently frontmost.
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
+
+    @objc private func showHelp() {
+        NSWorkspace.shared.open(URL(string: "https://github.com/drumandbytes/music-router")!)
     }
 }
