@@ -41,14 +41,23 @@ final class MediaKeyTap {
         self.handler = handler
     }
 
+    var hasInputMonitoring: Bool { CGPreflightListenEventAccess() }
+    var hasAccessibility: Bool { AXIsProcessTrusted() }
+
     /// `false` means Input Monitoring and/or Accessibility isn't granted yet
-    /// — call `requestPermission()` to prompt, then retry `start()`.
-    var hasPermission: Bool {
-        CGPreflightListenEventAccess() && AXIsProcessTrusted()
+    /// — call `requestInputMonitoringPermission()`/`requestAccessibilityPermission()`
+    /// to prompt, then retry `start()`.
+    var hasPermission: Bool { hasInputMonitoring && hasAccessibility }
+
+    /// Requesting both TCC prompts back-to-back only shows the first one —
+    /// macOS silently registers the second request without an alert if it
+    /// arrives while the first is still up. Call these separately, and only
+    /// call the second once the first is confirmed granted (see AppDelegate).
+    func requestInputMonitoringPermission() {
+        CGRequestListenEventAccess()
     }
 
-    func requestPermission() {
-        CGRequestListenEventAccess()
+    func requestAccessibilityPermission() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
     }

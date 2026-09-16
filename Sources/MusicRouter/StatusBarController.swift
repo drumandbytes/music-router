@@ -1,15 +1,19 @@
 import AppKit
+import ApplicationServices
+import CoreGraphics
 import ServiceManagement
 import UniformTypeIdentifiers
 
 /// Menu bar icon: shows current state, lets you toggle blocking, pick a
 /// replacement app, enable launch-at-login, hide the icon, and quit.
-final class StatusBarController {
+final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var isEnabled = true
+    private var permissionsItem: NSMenuItem?
     var onToggle: ((Bool) -> Void)?
 
-    init() {
+    override init() {
+        super.init()
         statusItem.button?.image = NSImage(
             systemSymbolName: "music.quarternote.3",
             accessibilityDescription: "Music Router"
@@ -69,6 +73,16 @@ final class StatusBarController {
         hideItem.target = self
         menu.addItem(hideItem)
 
+        // One line, refreshed in menuWillOpen — surfaces the dual Input
+        // Monitoring + Accessibility requirement (undocumented by Apple,
+        // easy to half-grant) instead of leaving a silent, unexplained
+        // "media keys don't work" as the only symptom. Always clickable:
+        // resetting is a harmless no-op to re-confirm when already granted.
+        let permissionsItem = NSMenuItem(title: "", action: #selector(resetPermissions), keyEquivalent: "")
+        permissionsItem.target = self
+        menu.addItem(permissionsItem)
+        self.permissionsItem = permissionsItem
+
         menu.addItem(.separator())
 
         let aboutItem = NSMenuItem(
@@ -95,7 +109,17 @@ final class StatusBarController {
             keyEquivalent: "q"
         ))
 
+        menu.delegate = self
         return menu
+    }
+
+    /// Refreshes the permissions line right before the menu shows, rather
+    /// than only at launch — lets you grant permission in System Settings
+    /// and see it reflected without quitting and reopening the app.
+    func menuWillOpen(_ menu: NSMenu) {
+        let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
+        let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
+        permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility \(accessibility))"
     }
 
     private func buildReplacementMenu() -> NSMenu {
@@ -224,6 +248,43 @@ final class StatusBarController {
         guard Config.isWebURL(text) else { return }
         Config.replacement = text
         statusItem.menu = buildMenu()
+    }
+
+    /// Clears both TCC grants for this app's bundle ID so they can be
+    /// re-requested cleanly — the fix for the grant silently going stale
+    /// after a rebuild changes the app's code-signing identity (see README).
+    /// Also clears `hasRequestedPermissions` so the relaunched process
+    /// actually re-prompts instead of just polling silently forever, then
+    /// relaunches itself — a fresh process is required for the OS to
+    /// re-evaluate the (now cleared) grants, and leaving that step to the
+    /// user manually is a step they can just forget.
+    @objc private func resetPermissions() {
+        let confirm = NSAlert()
+        confirm.messageText = "Reset Permissions?"
+        confirm.informativeText = "Clears the Input Monitoring and Accessibility grants for Music Router and relaunches it so you can grant them again."
+        confirm.addButton(withTitle: "Reset")
+        confirm.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+
+        for service in ["ListenEvent", "Accessibility"] {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            process.arguments = ["reset", service, Config.domain]
+            try? process.run()
+            process.waitUntilExit()
+        }
+        Config.hasRequestedPermissions = false
+
+        // `-n` forces a genuinely new process — without it, `open` sees the
+        // bundle already running and just re-activates this same instance,
+        // which then immediately quits from terminate() below instead of
+        // being replaced by a fresh one.
+        let relaunch = Process()
+        relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        relaunch.arguments = ["-n", Bundle.main.bundleURL.path]
+        try? relaunch.run()
+        NSApp.terminate(nil)
     }
 
     @objc private func showAbout() {
