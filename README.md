@@ -82,6 +82,10 @@ Click the note icon for:
 - **Hide Menu Bar Icon** — since a hidden `NSStatusItem` has no menu of its
   own to undo this from, relaunching the app (even while it's already
   running — double-click it again in Finder) un-hides it.
+- **Reset Permissions** — shows Input Monitoring/Accessibility grant status
+  inline, and (after confirming) clears both via `tccutil reset` and
+  relaunches the app so you can re-grant them. See "A note on signing" below
+  for why a grant can go stale in the first place.
 
 The menu covers everything; `defaults write dev.drumandbytes.musicrouter
 replacement <path-or-url>` (and `defaults delete … replacement` for
@@ -94,9 +98,10 @@ dotfiles setup.
 swift test
 ```
 
-Covers the two genuinely fiddly, pure pieces: `MediaKeyTap.decode`'s
-media-key bit-unpacking, and `Config`'s persistence/URL-vs-path logic. Not
-attempting to test the `CGEventTap`/TCC machinery itself — that needs a real
+Covers the pure, directly-testable pieces: `MediaKeyTap.decode`'s media-key
+bit-unpacking, `Config`'s persistence/URL-vs-path logic, and
+`MusicLauncherGuard`'s bundle-ID matching. Not attempting to test the
+`CGEventTap`/TCC machinery itself — that needs a real
 signed app, a real permission grant, and a real key press, none of which are
 practical in CI (see "A note on signing" below for how flaky that
 combination already is even by hand).
@@ -118,7 +123,8 @@ working after a re-sign with no error, independently of each other.
 itself if it finds the tap dead, which covers the common case, but the
 underlying grant may still need re-approving in System Settings after a
 signing-identity change. If toggling it in Settings doesn't seem to take
-effect, `tccutil reset ListenEvent dev.drumandbytes.musicrouter` (and/or
+effect, the menu's **Reset Permissions** action (or manually,
+`tccutil reset ListenEvent dev.drumandbytes.musicrouter` and/or
 `Accessibility` in place of `ListenEvent`) forces a clean re-registration —
 System Settings can show a stale "enabled" toggle for a grant that's no
 longer actually bound to the current build.
