@@ -33,11 +33,17 @@ final class MusicLauncherGuard {
         observer = nil
     }
 
+    /// Pure so it's directly testable without a real `NSRunningApplication`
+    /// (no public initializer, so one can't be constructed in a test).
+    static func shouldBlock(bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return blockedBundleIDs.contains(bundleID)
+    }
+
     private func handleLaunch(_ notification: Notification) {
         guard
             let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-            let bundleID = app.bundleIdentifier,
-            Self.blockedBundleIDs.contains(bundleID)
+            Self.shouldBlock(bundleID: app.bundleIdentifier)
         else { return }
 
         // Replacement first, terminate second — cuts down how long Music is

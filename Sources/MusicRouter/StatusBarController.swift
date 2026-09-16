@@ -1,15 +1,20 @@
 import AppKit
+import ApplicationServices
+import CoreGraphics
 import ServiceManagement
 import UniformTypeIdentifiers
 
 /// Menu bar icon: shows current state, lets you toggle blocking, pick a
 /// replacement app, enable launch-at-login, hide the icon, and quit.
-final class StatusBarController {
+final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var isEnabled = true
+    private var inputMonitoringStatusItem: NSMenuItem?
+    private var accessibilityStatusItem: NSMenuItem?
     var onToggle: ((Bool) -> Void)?
 
-    init() {
+    override init() {
+        super.init()
         statusItem.button?.image = NSImage(
             systemSymbolName: "music.quarternote.3",
             accessibilityDescription: "Music Router"
@@ -71,6 +76,30 @@ final class StatusBarController {
 
         menu.addItem(.separator())
 
+        // Read-only status lines, refreshed in menuWillOpen — surfaces the
+        // dual Input Monitoring + Accessibility requirement (undocumented by
+        // Apple, easy to half-grant) instead of leaving a silent, unexplained
+        // "media keys don't work" as the only symptom.
+        let inputMonitoringItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        inputMonitoringItem.isEnabled = false
+        menu.addItem(inputMonitoringItem)
+        inputMonitoringStatusItem = inputMonitoringItem
+
+        let accessibilityItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        accessibilityItem.isEnabled = false
+        menu.addItem(accessibilityItem)
+        accessibilityStatusItem = accessibilityItem
+
+        let resetPermissionsItem = NSMenuItem(
+            title: "Reset Permissions…",
+            action: #selector(resetPermissions),
+            keyEquivalent: ""
+        )
+        resetPermissionsItem.target = self
+        menu.addItem(resetPermissionsItem)
+
+        menu.addItem(.separator())
+
         let aboutItem = NSMenuItem(
             title: "About Music Router",
             action: #selector(showAbout),
@@ -95,7 +124,16 @@ final class StatusBarController {
             keyEquivalent: "q"
         ))
 
+        menu.delegate = self
         return menu
+    }
+
+    /// Refreshes the permission status lines right before the menu shows,
+    /// rather than only at launch — lets you grant permission in System
+    /// Settings and see it reflected without quitting and reopening the app.
+    func menuWillOpen(_ menu: NSMenu) {
+        inputMonitoringStatusItem?.title = "Input Monitoring: \(CGPreflightListenEventAccess() ? "Granted" : "Not Granted")"
+        accessibilityStatusItem?.title = "Accessibility: \(AXIsProcessTrusted() ? "Granted" : "Not Granted")"
     }
 
     private func buildReplacementMenu() -> NSMenu {
@@ -224,6 +262,29 @@ final class StatusBarController {
         guard Config.isWebURL(text) else { return }
         Config.replacement = text
         statusItem.menu = buildMenu()
+    }
+
+    /// Clears both TCC grants for this app's bundle ID so they can be
+    /// re-requested cleanly — the fix for the grant silently going stale
+    /// after a rebuild changes the app's code-signing identity (see README).
+    /// Also clears `hasRequestedPermissions` so the next launch actually
+    /// re-prompts instead of just polling silently forever.
+    @objc private func resetPermissions() {
+        for service in ["ListenEvent", "Accessibility"] {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            process.arguments = ["reset", service, Config.domain]
+            try? process.run()
+            process.waitUntilExit()
+        }
+        Config.hasRequestedPermissions = false
+
+        let alert = NSAlert()
+        alert.messageText = "Permissions Reset"
+        alert.informativeText = "Quit and reopen Music Router to be prompted for Input Monitoring and Accessibility again."
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     @objc private func showAbout() {
