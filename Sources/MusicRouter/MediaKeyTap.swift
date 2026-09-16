@@ -4,8 +4,10 @@ import CoreGraphics
 
 /// Intercepts the physical play/pause/next/previous media keys at the
 /// HID/session level, before macOS's default handler can decide "nothing's
-/// listening" and launch Music.app. Swallowing the event here means Music
-/// never launches for this trigger at all — no launch-then-kill flicker.
+/// listening" and launch Music.app. The handler decides whether to swallow
+/// the event: swallowing it here means Music never launches for this
+/// trigger at all (no launch-then-kill flicker); letting it through lets
+/// macOS's native routing reach whatever already owns Now Playing.
 /// (AirPlay/Handoff/Siri-triggered launches don't go through this path;
 /// `MusicLauncherGuard` covers those the only way anyone knows how to.)
 ///
@@ -17,7 +19,10 @@ import CoreGraphics
 /// either grant with no error — see the health-check timer below, and
 /// README for the full explanation.
 final class MediaKeyTap {
-    typealias Handler = (MediaKey, Bool) -> Void
+    /// Returns whether to swallow the event. `false` lets it pass through
+    /// untouched — used when something else already owns Now Playing, so
+    /// macOS's native routing reaches it directly (see AppDelegate).
+    typealias Handler = (MediaKey, Bool) -> Bool
 
     // Raw values are the IOKit/hidsystem NX_KEYTYPE_* constants (ev_keymap.h)
     // for media keys — lets `decode` below go straight from the packed key
@@ -129,8 +134,7 @@ final class MediaKeyTap {
             return Unmanaged.passUnretained(cgEvent)
         }
 
-        handler(mediaKey, isPressed)
-        return nil // swallow it — this is what stops Music.app's default launch
+        return handler(mediaKey, isPressed) ? nil : Unmanaged.passUnretained(cgEvent)
     }
 
     /// Pulls a media key + press state out of an `NSSystemDefined` event's
