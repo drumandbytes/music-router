@@ -276,9 +276,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         Config.hasRequestedPermissions = false
 
+        // `-n` forces a genuinely new process — without it, `open` sees the
+        // bundle already running and just re-activates this same instance,
+        // which then immediately quits from terminate() below instead of
+        // being replaced by a fresh one.
         let relaunch = Process()
         relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        relaunch.arguments = [Bundle.main.bundleURL.path]
+        relaunch.arguments = ["-n", Bundle.main.bundleURL.path]
         try? relaunch.run()
         NSApp.terminate(nil)
     }
