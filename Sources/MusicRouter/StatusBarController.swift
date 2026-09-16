@@ -119,7 +119,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
         let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
-        permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility \(accessibility))"
+        // "Accessibility" was renamed "Device Control and Data Access" in
+        // macOS 27 — same underlying permission, so both names are shown
+        // rather than picking one that's wrong on half of supported macOS.
+        permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility/Device Control \(accessibility))"
     }
 
     private func buildReplacementMenu() -> NSMenu {
@@ -261,7 +264,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func resetPermissions() {
         let confirm = NSAlert()
         confirm.messageText = "Reset Permissions?"
-        confirm.informativeText = "Clears the Input Monitoring and Accessibility grants for Music Router and relaunches it so you can grant them again."
+        confirm.informativeText = "Clears the Input Monitoring and Accessibility/Device Control grants for Music Router and relaunches it so you can grant them again."
         confirm.addButton(withTitle: "Reset")
         confirm.addButton(withTitle: "Cancel")
         NSApp.activate(ignoringOtherApps: true)
