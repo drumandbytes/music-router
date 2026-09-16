@@ -117,8 +117,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// than only at launch — lets you grant permission in System Settings
     /// and see it reflected without quitting and reopening the app.
     func menuWillOpen(_ menu: NSMenu) {
-        let granted = CGPreflightListenEventAccess() && AXIsProcessTrusted()
-        permissionsItem?.title = granted ? "Reset Permissions (Granted)" : "Reset Permissions (Not Granted)"
+        let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
+        let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
+        permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility \(accessibility))"
     }
 
     private func buildReplacementMenu() -> NSMenu {

@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mediaKeyTap: MediaKeyTap?
     private var statusBar: StatusBarController?
     private var permissionCheckTimer: Timer?
+    private var hasRequestedAccessibility = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let tap = MediaKeyTap { [weak self] key, isPressed in
@@ -20,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // every launch while the user hasn't gotten to Settings yet is
             // annoying. After that, just poll silently.
             if !Config.hasRequestedPermissions {
-                tap.requestPermission()
+                tap.requestInputMonitoringPermission()
                 Config.hasRequestedPermissions = true
             }
             permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
@@ -29,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     tap.start()
                     timer.invalidate()
                     self.permissionCheckTimer = nil
+                } else if tap.hasInputMonitoring, !self.hasRequestedAccessibility {
+                    // Input Monitoring is confirmed granted now, so it's safe
+                    // to prompt for Accessibility next without the two
+                    // prompts colliding.
+                    tap.requestAccessibilityPermission()
+                    self.hasRequestedAccessibility = true
                 }
             }
         }
