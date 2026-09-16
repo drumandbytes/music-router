@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/drumandbytes/music-router/compare/v0.4.0...v0.4.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* eliminate a data race in NowPlayingObserver's buffer ([f459f86](https://github.com/drumandbytes/music-router/commit/f459f86c2799fecb6d7b9ca3266cb6ae7e719e9b))
+* eliminate a data race in NowPlayingObserver's buffer ([3f097ff](https://github.com/drumandbytes/music-router/commit/3f097ff7c043d632d749cae04e90bbea04ae832f))
+
 ## [0.4.0](https://github.com/drumandbytes/music-router/compare/v0.3.0...v0.4.0) (2026-09-16)
 
 
