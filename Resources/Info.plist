@@ -20,6 +20,8 @@
     <string>13.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Music Router sends play/pause and track commands to your chosen music app when you press a media key.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright drumandbytes. MIT License.</string>
     <key>NSPrincipalClass</key>

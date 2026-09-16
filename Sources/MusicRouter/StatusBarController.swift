@@ -8,7 +8,8 @@ import UniformTypeIdentifiers
 /// replacement app, enable launch-at-login, hide the icon, and quit.
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    private var isEnabled = true
+    private var isEnabled = Config.isEnabled
+    private var replacementItem: NSMenuItem?
     private var permissionsItem: NSMenuItem?
     var onToggle: ((Bool) -> Void)?
 
@@ -52,9 +53,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        // Submenu is filled in menuWillOpen, so it's always current.
         let replacementItem = NSMenuItem(title: "Replacement App", action: nil, keyEquivalent: "")
-        replacementItem.submenu = buildReplacementMenu()
+        replacementItem.submenu = NSMenu()
         menu.addItem(replacementItem)
+        self.replacementItem = replacementItem
 
         let loginItem = NSMenuItem(
             title: "Launch at Login",
@@ -113,10 +116,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         return menu
     }
 
-    /// Refreshes the permissions line right before the menu shows, rather
-    /// than only at launch — lets you grant permission in System Settings
-    /// and see it reflected without quitting and reopening the app.
+    /// Refreshes state-dependent items right before the menu shows, rather
+    /// than only at launch — a permission granted in System Settings, or a
+    /// replacement app installed/uninstalled while this runs, shows up
+    /// without quitting and reopening the app.
     func menuWillOpen(_ menu: NSMenu) {
+        replacementItem?.submenu = buildReplacementMenu()
+
         let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
         let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
         // "Accessibility" was renamed "Device Control and Data Access" in
@@ -140,7 +146,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         submenu.addItem(.separator())
 
-        for app in Config.availablePredefinedApps {
+        let available = Config.availablePredefinedApps
+        for app in available {
             let title = Config.isWebURL(app.target) ? "\(app.name) (Web)" : app.name
             let item = NSMenuItem(
                 title: title,
@@ -153,9 +160,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             submenu.addItem(item)
         }
 
-        if let current, !Config.predefinedApps.contains(where: { $0.target == current }) {
+        // Checked against what's actually listed above, not the full
+        // predefined list: a predefined app that's since been uninstalled is
+        // filtered out of the list, so checking the unfiltered one left the
+        // menu showing no selection at all.
+        if let current, !available.contains(where: { $0.target == current }) {
             let label = Config.isWebURL(current) ? current : (current as NSString).lastPathComponent
-            let currentItem = NSMenuItem(title: "Current: \(label)", action: nil, keyEquivalent: "")
+            let suffix = Config.replacementIsMissing ? " (not found)" : ""
+            let currentItem = NSMenuItem(title: "Current: \(label)\(suffix)", action: nil, keyEquivalent: "")
             currentItem.state = .on
             currentItem.isEnabled = false
             submenu.addItem(currentItem)
@@ -184,6 +196,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func toggleEnabled(_ sender: NSMenuItem) {
         isEnabled.toggle()
+        Config.isEnabled = isEnabled
         sender.state = isEnabled ? .on : .off
         updateIcon()
         onToggle?(isEnabled)
@@ -209,13 +222,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func setBlockOnly() {
         Config.replacement = nil
-        statusItem.menu = buildMenu()
     }
 
     @objc private func selectPredefinedApp(_ sender: NSMenuItem) {
         guard let target = sender.representedObject as? String else { return }
         Config.replacement = target
-        statusItem.menu = buildMenu()
     }
 
     @objc private func chooseReplacementApp() {
@@ -228,7 +239,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Config.replacement = url.path
-        statusItem.menu = buildMenu()
     }
 
     @objc private func chooseCustomURL() {
@@ -248,9 +258,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard Config.isWebURL(text) else { return }
+        guard Config.isWebURL(text) else {
+            let error = NSAlert()
+            error.alertStyle = .warning
+            error.messageText = "Not a Web URL"
+            error.informativeText = "“\(text)” needs to start with http:// or https://. Use Choose App… for a local app."
+            error.runModal()
+            return
+        }
         Config.replacement = text
-        statusItem.menu = buildMenu()
     }
 
     /// Clears both TCC grants for this app's bundle ID so they can be

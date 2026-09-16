@@ -17,6 +17,9 @@ final class MusicLauncherGuard {
     private var observer: NSObjectProtocol?
 
     func start() {
+        // Same idempotency as MediaKeyTap/NowPlayingObserver: a second start
+        // would orphan the first observer and double-fire forceTerminate().
+        guard observer == nil else { return }
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification,
             object: nil,

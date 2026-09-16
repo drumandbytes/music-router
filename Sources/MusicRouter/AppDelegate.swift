@@ -15,9 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         mediaKeyTap = tap
 
-        if tap.hasPermission {
-            tap.start()
-        } else {
+        if !tap.hasPermission {
             // Only show the actual system prompts once ever — re-nagging on
             // every launch while the user hasn't gotten to Settings yet is
             // annoying. After that, just poll silently.
@@ -25,10 +23,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 tap.requestInputMonitoringPermission()
                 Config.hasRequestedPermissions = true
             }
+            // Only sequences the second prompt. It must never start the tap
+            // itself: it used to, ignoring enabled state, so granting
+            // permission while the app was switched off re-armed it anyway.
+            // A started tap installs itself once both grants exist.
             permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
                 guard let self, let tap = self.mediaKeyTap else { timer.invalidate(); return }
                 if tap.hasPermission {
-                    tap.start()
                     timer.invalidate()
                     self.permissionCheckTimer = nil
                 } else if tap.hasInputMonitoring, !self.hasRequestedAccessibility {
@@ -41,8 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        launcherGuard.start()
-        nowPlayingObserver.start()
+        setEnabled(Config.isEnabled)
 
         let statusBar = StatusBarController()
         statusBar.onToggle = { [weak self] enabled in
