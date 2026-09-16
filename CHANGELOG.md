@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0](https://github.com/drumandbytes/music-router/compare/v0.3.0...v0.4.0) (2026-09-16)
+
+
+### Features
+
+* add permissions diagnostics and reset to the menu ([161d344](https://github.com/drumandbytes/music-router/commit/161d34459b45ab28832833772d2b8b9d09e7054a))
+* add permissions diagnostics and reset to the menu ([a355ab6](https://github.com/drumandbytes/music-router/commit/a355ab6da0e6aae21b95bc203c09e73c86a86205))
+* real playback control instead of just opening the replacement ([d986e02](https://github.com/drumandbytes/music-router/commit/d986e020925570fef0eb400e3ddb510daed8164e))
+* real playback control instead of just opening the replacement ([4cf2815](https://github.com/drumandbytes/music-router/commit/4cf2815e67dadf668e9897b5df3ddea1d11961aa))
+
+
+### Bug Fixes
+
+* force a new process on relaunch with open -n ([f7ec98d](https://github.com/drumandbytes/music-router/commit/f7ec98da00d30d2493ec17550f6ccc6903718177))
+* relaunch automatically after resetting permissions ([f66a0c2](https://github.com/drumandbytes/music-router/commit/f66a0c25fde5b63543334703e75b2b68338f041c))
+* sequence the two TCC permission prompts, show both distinctly ([51c895b](https://github.com/drumandbytes/music-router/commit/51c895b6835c3f32b41699ef201cb30961cf3296))
+* stop the media-control child process on quit ([c8f76b2](https://github.com/drumandbytes/music-router/commit/c8f76b262a1aa74d09a380080169ad4cac07c801))
+
 ## [0.3.0](https://github.com/drumandbytes/music-router/compare/v0.2.0...v0.3.0) (2026-09-15)
 
 
