@@ -91,7 +91,8 @@ Settings → Privacy & Security → Open Anyway.
 
 Click the note icon for:
 
-- **Enabled** — toggle both interception mechanisms on/off.
+- **Enabled** — toggle both interception mechanisms on/off. Remembered
+  across relaunches.
 - **Replacement App** — a curated shortlist (Spotify, TIDAL, VLC, YouTube
   Music, Deezer, SoundCloud — native apps only show if actually installed),
   **Choose App…** for any other local app, **Custom URL…** for any other web
@@ -138,8 +139,8 @@ If you build it yourself and re-sign with a different identity, note that
 **Device Control and Data Access** on macOS 27 — both required) are tied to
 code-signing identity — either can silently stop
 working after a re-sign with no error, independently of each other.
-`MediaKeyTap` polls `CGEvent.tapIsEnabled()` every 5 seconds and reinstalls
-itself if it finds the tap dead, which covers the common case, but the
+`MediaKeyTap` checks every 5 seconds and reinstalls itself if the tap is dead
+or never managed to install, which covers the common case, but the
 underlying grant may still need re-approving in System Settings after a
 signing-identity change. If toggling it in Settings doesn't seem to take
 effect, the menu's **Reset Permissions** action (or manually,
@@ -147,6 +148,13 @@ effect, the menu's **Reset Permissions** action (or manually,
 `Accessibility` in place of `ListenEvent`) forces a clean re-registration —
 System Settings can show a stale "enabled" toggle for a grant that's no
 longer actually bound to the current build.
+
+When moving to Developer ID signing + notarization: notarization requires
+hardened runtime (`codesign --options runtime`), and under it AppleEvents to
+other apps are denied unless the `com.apple.security.automation.apple-events`
+entitlement is present — `scripts/build-app.sh` already applies
+`Resources/MusicRouter.entitlements`, so only the identity and `--options
+runtime` need adding.
 
 ## License
 

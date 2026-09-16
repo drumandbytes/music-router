@@ -37,6 +37,7 @@ final class MediaKeyTap {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var healthCheckTimer: Timer?
+    private var shouldBeRunning = false
 
     // NSEvent.EventType.systemDefined.rawValue — not exposed on CGEventType,
     // so it has to be matched/masked by raw numeric value instead.
@@ -51,7 +52,7 @@ final class MediaKeyTap {
 
     /// `false` means Input Monitoring and/or Accessibility isn't granted yet
     /// — call `requestInputMonitoringPermission()`/`requestAccessibilityPermission()`
-    /// to prompt, then retry `start()`.
+    /// to prompt; a started tap installs itself once both are granted.
     var hasPermission: Bool { hasInputMonitoring && hasAccessibility }
 
     /// Requesting both TCC prompts back-to-back only shows the first one —
@@ -67,7 +68,41 @@ final class MediaKeyTap {
         AXIsProcessTrustedWithOptions(options)
     }
 
+    /// Marks the tap as wanted and keeps trying until it is. The health check
+    /// runs independently of whether this first attempt succeeds, so a
+    /// failure here (no permission yet, or `tapCreate` refusing) is retried
+    /// rather than left permanently dead.
     func start() {
+        shouldBeRunning = true
+        if healthCheckTimer == nil {
+            healthCheckTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+                self?.healthCheck()
+            }
+        }
+        install()
+    }
+
+    func stop() {
+        shouldBeRunning = false
+        healthCheckTimer?.invalidate()
+        healthCheckTimer = nil
+        teardown()
+    }
+
+    /// CGEventTaps tied to Input Monitoring can go silently inert after a
+    /// re-sign without the OS reporting it, and `install()` can fail outright
+    /// when a grant is missing — reinstall in either case, for as long as the
+    /// tap is meant to be running. Deliberately not routed through
+    /// `stop()`/`start()`: `stop()` kills this very timer, so a failed
+    /// recovery attempt used to take the retry mechanism down with it.
+    private func healthCheck() {
+        guard shouldBeRunning else { return }
+        if let tap = eventTap, CGEvent.tapIsEnabled(tap: tap) { return }
+        teardown()
+        install()
+    }
+
+    private func install() {
         guard hasPermission, eventTap == nil else { return }
 
         let eventMask = 1 << Self.systemDefinedEventType
@@ -91,17 +126,9 @@ final class MediaKeyTap {
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-
-        // CGEventTaps tied to Input Monitoring can go silently inert after a
-        // re-sign without the OS reporting it — poll and reinstall if so.
-        healthCheckTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            self?.verifyTapIsAlive()
-        }
     }
 
-    func stop() {
-        healthCheckTimer?.invalidate()
-        healthCheckTimer = nil
+    private func teardown() {
         if let tap = eventTap {
             CGEvent.tapEnable(tap: tap, enable: false)
         }
@@ -110,12 +137,6 @@ final class MediaKeyTap {
         }
         eventTap = nil
         runLoopSource = nil
-    }
-
-    private func verifyTapIsAlive() {
-        guard let tap = eventTap, !CGEvent.tapIsEnabled(tap: tap) else { return }
-        stop()
-        start()
     }
 
     private func handle(type: CGEventType, cgEvent: CGEvent) -> Unmanaged<CGEvent>? {

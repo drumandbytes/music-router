@@ -10,7 +10,29 @@ final class ConfigTests: XCTestCase {
         Config.replacement = nil
         Config.hasRequestedPermissions = false
         Config.menuBarIconHidden = false
+        // Removed rather than set, so the default-true path is what the next
+        // test sees.
+        UserDefaults.standard.removeObject(forKey: "enabled")
         super.tearDown()
+    }
+
+    func testIsEnabledDefaultsTrueAndPersistsFalse() {
+        XCTAssertTrue(Config.isEnabled)
+        Config.isEnabled = false
+        XCTAssertFalse(Config.isEnabled)
+    }
+
+    func testReplacementIsMissingOnlyForAbsentNativePaths() {
+        XCTAssertFalse(Config.replacementIsMissing, "block-only isn't missing")
+
+        Config.replacement = "https://music.youtube.com/"
+        XCTAssertFalse(Config.replacementIsMissing, "web URLs have nothing to check")
+
+        Config.replacement = "/System/Applications/Calculator.app"
+        XCTAssertFalse(Config.replacementIsMissing)
+
+        Config.replacement = "/Applications/Definitely-Not-Installed-\(UUID()).app"
+        XCTAssertTrue(Config.replacementIsMissing)
     }
 
     func testIsWebURLAcceptsHttpAndHttps() {

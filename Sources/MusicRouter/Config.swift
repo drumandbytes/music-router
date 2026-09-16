@@ -42,6 +42,16 @@ enum Config {
         set { UserDefaults.standard.set(newValue, forKey: "menuBarIconHidden") }
     }
 
+    /// Whether interception is active. Defaults to true, hence `object(forKey:)`
+    /// rather than `bool(forKey:)` (which would read an unset key as false).
+    /// Persisted because an in-memory-only flag meant switching it off
+    /// silently undid itself on the next launch — every login, with Launch
+    /// at Login on.
+    static var isEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "enabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "enabled") }
+    }
+
     /// A curated shortcut list for the "Replacement App" menu. Native apps
     /// are filtered to ones actually installed; web players always show
     /// since there's nothing to check. "Choose App…" covers anything else.
@@ -57,6 +67,15 @@ enum Config {
     /// Installed native apps + all web players, in `predefinedApps` order.
     static var availablePredefinedApps: [(name: String, target: String)] {
         predefinedApps.filter { isWebURL($0.target) || FileManager.default.fileExists(atPath: $0.target) }
+    }
+
+    /// A configured native app that's since been uninstalled or moved. Both
+    /// the AppleScript command and the plain-open fallback fail silently in
+    /// that state, so the menu flags it rather than leaving a dead media key
+    /// with no explanation anywhere.
+    static var replacementIsMissing: Bool {
+        guard let replacement, !isWebURL(replacement) else { return false }
+        return !FileManager.default.fileExists(atPath: replacement)
     }
 
     /// Pure so it's directly testable — `open` needs no live app/URL to be
