@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.3](https://github.com/drumandbytes/music-router/compare/v0.4.2...v0.4.3) (2026-09-16)
+
+
+### Bug Fixes
+
+* persist enabled state, harden tap self-healing, surface silent failures ([4593fa7](https://github.com/drumandbytes/music-router/commit/4593fa740e0bdb8efb45385b9a73bd8b3cd99721))
+* persist enabled state, harden tap self-healing, surface silent failures ([e20ae05](https://github.com/drumandbytes/music-router/commit/e20ae055c5a3ee617ddae0be884572bb22aa3499))
+
 ## [0.4.2](https://github.com/drumandbytes/music-router/compare/v0.4.1...v0.4.2) (2026-09-16)
 
 
