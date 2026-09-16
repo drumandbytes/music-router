@@ -7,8 +7,8 @@ actually get them.
 Built as a more functional, actively-maintained replacement for
 [noTunes](https://github.com/tombonez/noTunes), whose Music-blocking approach
 this reuses (it's the correct one), extended with a lower-level fix for the
-keyboard case and — eventually — the ability to pick which app responds when
-more than one is playing.
+keyboard case and real playback control of the replacement app, not just
+launching it.
 
 ## How it works
 
@@ -29,22 +29,38 @@ that need different fixes:
 
 ## Status
 
-**Phase 1 (this repo, current):** menu-bar toggle, the two interception
-mechanisms above, and a configurable single replacement app/URL (via
-`defaults write dev.drumandbytes.musicrouter replacement <path-or-url>`,
-same convention as noTunes).
+Menu-bar toggle, the two interception mechanisms above, and a configurable
+single replacement app/URL (via `defaults write dev.drumandbytes.musicrouter
+replacement <path-or-url>`, same convention as noTunes).
 
-**Phase 2 (not yet built):** when multiple apps are playing media
-simultaneously, choose which one responds to the media keys, using the
-private `MediaRemote` framework (what Control Center's Now Playing widget
-uses) via the [`mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter)
-technique — a system binary with the required entitlement (`com.apple.*`
-bundle IDs are allow-listed) hosts the private framework calls, bypassing the
-direct-linking restriction Apple added in macOS 15.4.
+A media key press first checks whether something is *already* the system's
+Now Playing session — native app or a browser tab, anything using the Media
+Session/MediaRemote machinery — via `NowPlayingObserver`. If so, the key is
+let through untouched, so macOS's own native routing reaches it directly,
+exactly as if this app didn't exist; no app-specific code needed on our side.
+Only when *nothing* is currently playing does `MediaKeyTap` swallow the key
+and launch the configured replacement — for a native app with an AppleScript
+dictionary (Spotify, VLC, Music all share iTunes' old
+`playpause`/`next track`/`previous track` verbs), `AppleScriptRemote` forces
+it into a playing state rather than just opening a window; web replacements
+and non-scriptable native apps (e.g. TIDAL) fall back to a plain open.
+
+`NowPlayingObserver` shells out to the
+[`media-control`](https://formulae.brew.sh/formula/media-control) CLI
+(a Homebrew core formula, declared as a cask dependency), which wraps the
+private `MediaRemote` framework via the
+[`mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter)
+`com.apple.perl5`-entitlement technique — reused rather than vendored, so
+there's no framework bundling or build-system dependency on our side. It
+runs once as a long-lived background process (`media-control stream`) at
+launch, caching the latest state in memory, so a media key press only reads
+an already-current flag — no subprocess spawned on the key-press path.
 
 ## Building
 
-No Xcode required — just the Xcode Command Line Tools (`xcode-select --install`):
+No Xcode required — just the Xcode Command Line Tools (`xcode-select --install`)
+and [`media-control`](https://formulae.brew.sh/formula/media-control)
+(`brew install media-control`) for the Now Playing detection:
 
 ```bash
 scripts/build-app.sh [version]   # swift build + bundle assembly + ad-hoc codesign

@@ -2,15 +2,16 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let launcherGuard = MusicLauncherGuard()
+    private let nowPlayingObserver = NowPlayingObserver()
     private var mediaKeyTap: MediaKeyTap?
     private var statusBar: StatusBarController?
     private var permissionCheckTimer: Timer?
     private var hasRequestedAccessibility = false
+    private var lastKeySwallowed = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let tap = MediaKeyTap { [weak self] key, isPressed in
-            guard isPressed else { return }
-            self?.handleMediaKey(key)
+            self?.shouldSwallow(key, isPressed: isPressed) ?? false
         }
         mediaKeyTap = tap
 
@@ -41,12 +42,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         launcherGuard.start()
+        nowPlayingObserver.start()
 
         let statusBar = StatusBarController()
         statusBar.onToggle = { [weak self] enabled in
             self?.setEnabled(enabled)
         }
         self.statusBar = statusBar
+    }
+
+    // Without this, quitting leaves the media-control child process orphaned
+    // and running forever instead of exiting with its parent.
+    func applicationWillTerminate(_ notification: Notification) {
+        nowPlayingObserver.stop()
     }
 
     // The documented hook for "user tried to open the app again while it's
@@ -59,24 +67,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Decides whether `MediaKeyTap` should swallow the event. Release
+    /// events mirror whatever was decided for the press, so a swallowed
+    /// press can't leave a stray key-up passed through to the OS (or vice
+    /// versa) — `nowPlayingObserver`'s state could in theory change between
+    /// the two, though not in the sub-second window between a real press
+    /// and release.
+    private func shouldSwallow(_ key: MediaKeyTap.MediaKey, isPressed: Bool) -> Bool {
+        guard isPressed else { return lastKeySwallowed }
+
+        if nowPlayingObserver.isSomethingOpen {
+            // Something already owns Now Playing (native or web) — back off
+            // and let macOS's native routing reach it directly, exactly as
+            // it would if this app didn't exist.
+            lastKeySwallowed = false
+        } else {
+            handleMediaKey(key)
+            lastKeySwallowed = true
+        }
+        return lastKeySwallowed
+    }
+
     private func handleMediaKey(_ key: MediaKeyTap.MediaKey) {
-        // Phase 1: the key press is swallowed (Music.app never launches for
-        // it at all), so open the configured replacement in its place — same
-        // behavior as the launch-then-kill path, just without the flicker.
-        //
-        // TODO(phase 2): once more than one app is playing, route to
-        // whichever is actually "Now Playing" instead of always the fixed
-        // replacement, via the MediaRemote adapter technique (see README) —
-        // and forward play/pause/next/previous specifically, not just "open".
+        // Nothing's playing yet, so there's no existing Now Playing session
+        // to send a command to — launch the configured replacement instead.
+        // For a scriptable native app, force it into a playing state via
+        // AppleScript rather than just opening a window; falls back to a
+        // plain open for web replacements (can't script a browser tab) and
+        // for native apps with no AppleScript dictionary.
+        if let replacement = Config.replacement,
+           !Config.isWebURL(replacement),
+           AppleScriptRemote.send(key, toAppAtPath: replacement) {
+            return
+        }
         Config.openReplacement()
     }
 
     private func setEnabled(_ enabled: Bool) {
         if enabled {
             launcherGuard.start()
+            nowPlayingObserver.start()
             mediaKeyTap?.start()
         } else {
             launcherGuard.stop()
+            nowPlayingObserver.stop()
             mediaKeyTap?.stop()
         }
     }
