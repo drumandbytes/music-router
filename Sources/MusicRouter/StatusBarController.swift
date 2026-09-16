@@ -252,12 +252,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Clears both TCC grants for this app's bundle ID so they can be
     /// re-requested cleanly — the fix for the grant silently going stale
     /// after a rebuild changes the app's code-signing identity (see README).
-    /// Also clears `hasRequestedPermissions` so the next launch actually
-    /// re-prompts instead of just polling silently forever.
+    /// Also clears `hasRequestedPermissions` so the relaunched process
+    /// actually re-prompts instead of just polling silently forever, then
+    /// relaunches itself — a fresh process is required for the OS to
+    /// re-evaluate the (now cleared) grants, and leaving that step to the
+    /// user manually is a step they can just forget.
     @objc private func resetPermissions() {
         let confirm = NSAlert()
         confirm.messageText = "Reset Permissions?"
-        confirm.informativeText = "Clears the Input Monitoring and Accessibility grants for Music Router. You'll need to quit and reopen the app to be prompted again."
+        confirm.informativeText = "Clears the Input Monitoring and Accessibility grants for Music Router and relaunches it so you can grant them again."
         confirm.addButton(withTitle: "Reset")
         confirm.addButton(withTitle: "Cancel")
         NSApp.activate(ignoringOtherApps: true)
@@ -272,11 +275,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         Config.hasRequestedPermissions = false
 
-        let done = NSAlert()
-        done.messageText = "Permissions Reset"
-        done.informativeText = "Quit and reopen Music Router to be prompted for Input Monitoring and Accessibility again."
-        done.addButton(withTitle: "OK")
-        done.runModal()
+        let relaunch = Process()
+        relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        relaunch.arguments = [Bundle.main.bundleURL.path]
+        try? relaunch.run()
+        NSApp.terminate(nil)
     }
 
     @objc private func showAbout() {
