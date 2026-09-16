@@ -51,6 +51,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusBar = statusBar
     }
 
+    // Without this, quitting leaves the media-control child process orphaned
+    // and running forever instead of exiting with its parent.
+    func applicationWillTerminate(_ notification: Notification) {
+        nowPlayingObserver.stop()
+    }
+
     // The documented hook for "user tried to open the app again while it's
     // already running" (double-clicking it in Finder, `open` from Terminal,
     // etc. — not just Dock icon clicks). Confirmed empirically (3/3 clean
