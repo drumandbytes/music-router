@@ -35,7 +35,10 @@ final class NowPlayingObserver {
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             guard !chunk.isEmpty else { return }
-            self?.consume(chunk)
+            // Pipe callbacks fire on a background thread, but `stop()` (from
+            // the main thread) also touches `buffer` — hop to main so it's
+            // never mutated from two threads at once.
+            DispatchQueue.main.async { self?.consume(chunk) }
         }
 
         do {
