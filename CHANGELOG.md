@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/drumandbytes/music-router/compare/v0.4.1...v0.4.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* detect media-control process death, close a threading loose end, test the swallow decision ([617658f](https://github.com/drumandbytes/music-router/commit/617658ff0897c84e4e73f2e5ba19d8d33dfea372))
+* detect media-control process death, close a threading loose end, test the swallow decision ([32218d2](https://github.com/drumandbytes/music-router/commit/32218d2fdf80dd358472dc63c22c720dad1261d9))
+
 ## [0.4.1](https://github.com/drumandbytes/music-router/compare/v0.4.0...v0.4.1) (2026-09-16)
 
 
