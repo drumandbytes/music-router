@@ -68,8 +68,10 @@ open build/MusicRouter.app
 ```
 
 First launch prompts for **Input Monitoring** and **Accessibility**
-permission (System Settings → Privacy & Security) — both are needed for the
-media key tap; `CGEventTapCreate` silently fails with only one granted. The
+permission (System Settings → Privacy & Security — renamed to **Device
+Control and Data Access** in macOS 27; same underlying permission, same
+`AXIsProcessTrustedWithOptions` API, just a new label) — both are needed for
+the media key tap; `CGEventTapCreate` silently fails with only one granted. The
 prompt only shows once ever, even across relaunches while you haven't
 granted it yet — check Settings at your own pace rather than getting
 re-alerted every launch.
@@ -132,8 +134,9 @@ installing it go through the normal one-time Gatekeeper approval like any
 non-Developer-ID-signed app.
 
 If you build it yourself and re-sign with a different identity, note that
-`CGEventTap` permissions (Input Monitoring **and** Accessibility — both
-required) are tied to code-signing identity — either can silently stop
+`CGEventTap` permissions (Input Monitoring **and** Accessibility, aka
+**Device Control and Data Access** on macOS 27 — both required) are tied to
+code-signing identity — either can silently stop
 working after a re-sign with no error, independently of each other.
 `MediaKeyTap` polls `CGEvent.tapIsEnabled()` every 5 seconds and reinstalls
 itself if it finds the tap dead, which covers the common case, but the
