@@ -9,8 +9,7 @@ import UniformTypeIdentifiers
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var isEnabled = true
-    private var inputMonitoringStatusItem: NSMenuItem?
-    private var accessibilityStatusItem: NSMenuItem?
+    private var permissionsItem: NSMenuItem?
     var onToggle: ((Bool) -> Void)?
 
     override init() {
@@ -74,29 +73,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         hideItem.target = self
         menu.addItem(hideItem)
 
-        menu.addItem(.separator())
-
-        // Read-only status lines, refreshed in menuWillOpen — surfaces the
-        // dual Input Monitoring + Accessibility requirement (undocumented by
-        // Apple, easy to half-grant) instead of leaving a silent, unexplained
-        // "media keys don't work" as the only symptom.
-        let inputMonitoringItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        inputMonitoringItem.isEnabled = false
-        menu.addItem(inputMonitoringItem)
-        inputMonitoringStatusItem = inputMonitoringItem
-
-        let accessibilityItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        accessibilityItem.isEnabled = false
-        menu.addItem(accessibilityItem)
-        accessibilityStatusItem = accessibilityItem
-
-        let resetPermissionsItem = NSMenuItem(
-            title: "Reset Permissions…",
-            action: #selector(resetPermissions),
-            keyEquivalent: ""
-        )
-        resetPermissionsItem.target = self
-        menu.addItem(resetPermissionsItem)
+        // One line, refreshed in menuWillOpen — surfaces the dual Input
+        // Monitoring + Accessibility requirement (undocumented by Apple,
+        // easy to half-grant) instead of leaving a silent, unexplained
+        // "media keys don't work" as the only symptom. Always clickable:
+        // resetting is a harmless no-op to re-confirm when already granted.
+        let permissionsItem = NSMenuItem(title: "", action: #selector(resetPermissions), keyEquivalent: "")
+        permissionsItem.target = self
+        menu.addItem(permissionsItem)
+        self.permissionsItem = permissionsItem
 
         menu.addItem(.separator())
 
@@ -128,12 +113,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         return menu
     }
 
-    /// Refreshes the permission status lines right before the menu shows,
-    /// rather than only at launch — lets you grant permission in System
-    /// Settings and see it reflected without quitting and reopening the app.
+    /// Refreshes the permissions line right before the menu shows, rather
+    /// than only at launch — lets you grant permission in System Settings
+    /// and see it reflected without quitting and reopening the app.
     func menuWillOpen(_ menu: NSMenu) {
-        inputMonitoringStatusItem?.title = "Input Monitoring: \(CGPreflightListenEventAccess() ? "Granted" : "Not Granted")"
-        accessibilityStatusItem?.title = "Accessibility: \(AXIsProcessTrusted() ? "Granted" : "Not Granted")"
+        let granted = CGPreflightListenEventAccess() && AXIsProcessTrusted()
+        permissionsItem?.title = granted ? "Reset Permissions (Granted)" : "Reset Permissions (Not Granted)"
     }
 
     private func buildReplacementMenu() -> NSMenu {
@@ -270,6 +255,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Also clears `hasRequestedPermissions` so the next launch actually
     /// re-prompts instead of just polling silently forever.
     @objc private func resetPermissions() {
+        let confirm = NSAlert()
+        confirm.messageText = "Reset Permissions?"
+        confirm.informativeText = "Clears the Input Monitoring and Accessibility grants for Music Router. You'll need to quit and reopen the app to be prompted again."
+        confirm.addButton(withTitle: "Reset")
+        confirm.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+
         for service in ["ListenEvent", "Accessibility"] {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
@@ -279,12 +272,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         Config.hasRequestedPermissions = false
 
-        let alert = NSAlert()
-        alert.messageText = "Permissions Reset"
-        alert.informativeText = "Quit and reopen Music Router to be prompted for Input Monitoring and Accessibility again."
-        alert.addButton(withTitle: "OK")
-        NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
+        let done = NSAlert()
+        done.messageText = "Permissions Reset"
+        done.informativeText = "Quit and reopen Music Router to be prompted for Input Monitoring and Accessibility again."
+        done.addButton(withTitle: "OK")
+        done.runModal()
     }
 
     @objc private func showAbout() {
