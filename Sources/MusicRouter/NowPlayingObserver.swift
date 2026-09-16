@@ -41,6 +41,22 @@ final class NowPlayingObserver {
             DispatchQueue.main.async { self?.consume(chunk) }
         }
 
+        // If the child dies (crash, killed, a future macOS update breaking
+        // the technique this CLI relies on), EOF alone wouldn't tell us —
+        // readabilityHandler just gets empty data, which is otherwise
+        // ignored. Without this, isSomethingOpen would freeze at its last
+        // value forever, possibly stuck "true" and permanently suppressing
+        // key interception. Falling back to false matches the safe,
+        // pre-this-feature default, and clearing process/pipe lets a later
+        // start() (e.g. toggling Enabled off/on) relaunch it.
+        task.terminationHandler = { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.isSomethingOpen = false
+                self?.process = nil
+                self?.pipe = nil
+            }
+        }
+
         do {
             try task.run()
             process = task
@@ -66,7 +82,7 @@ final class NowPlayingObserver {
             let line = buffer.subdata(in: buffer.startIndex..<newline)
             buffer.removeSubrange(buffer.startIndex...newline)
             if let open = Self.hasNowPlayingApp(jsonLine: line) {
-                DispatchQueue.main.async { [weak self] in self?.isSomethingOpen = open }
+                isSomethingOpen = open
             }
         }
     }

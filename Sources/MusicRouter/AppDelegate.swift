@@ -67,25 +67,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    /// Decides whether `MediaKeyTap` should swallow the event. Release
-    /// events mirror whatever was decided for the press, so a swallowed
-    /// press can't leave a stray key-up passed through to the OS (or vice
-    /// versa) — `nowPlayingObserver`'s state could in theory change between
-    /// the two, though not in the sub-second window between a real press
-    /// and release.
+    /// Decides whether `MediaKeyTap` should swallow the event, and fires the
+    /// side effect (launching/controlling the replacement) when it does.
     private func shouldSwallow(_ key: MediaKeyTap.MediaKey, isPressed: Bool) -> Bool {
-        guard isPressed else { return lastKeySwallowed }
-
-        if nowPlayingObserver.isSomethingOpen {
-            // Something already owns Now Playing (native or web) — back off
-            // and let macOS's native routing reach it directly, exactly as
-            // it would if this app didn't exist.
-            lastKeySwallowed = false
-        } else {
-            handleMediaKey(key)
-            lastKeySwallowed = true
+        let swallow = Self.decideSwallow(
+            isPressed: isPressed,
+            isSomethingOpen: nowPlayingObserver.isSomethingOpen,
+            lastKeySwallowed: lastKeySwallowed
+        )
+        if isPressed {
+            lastKeySwallowed = swallow
+            if swallow { handleMediaKey(key) }
         }
-        return lastKeySwallowed
+        return swallow
+    }
+
+    /// Pure so it's directly testable without a real `NowPlayingObserver`.
+    /// Release events mirror whatever was decided for the press, so a
+    /// swallowed press can't leave a stray key-up passed through to the OS
+    /// (or vice versa) — `isSomethingOpen` could in theory change between
+    /// the two, though not in the sub-second window between a real press
+    /// and release. When pressed, swallow (and redirect) exactly when
+    /// nothing already owns Now Playing — otherwise back off and let
+    /// macOS's native routing reach it directly, as it would if this app
+    /// didn't exist.
+    static func decideSwallow(isPressed: Bool, isSomethingOpen: Bool, lastKeySwallowed: Bool) -> Bool {
+        guard isPressed else { return lastKeySwallowed }
+        return !isSomethingOpen
     }
 
     private func handleMediaKey(_ key: MediaKeyTap.MediaKey) {
