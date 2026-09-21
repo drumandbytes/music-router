@@ -4,6 +4,8 @@ A menu-bar utility that stops Music.app/iTunes from launching when you don't
 want it to, and routes your keyboard's media keys to whichever app should
 actually get them.
 
+[More Drumandbytes projects](https://drumandbytes.com/projects/)
+
 Built as a more functional, actively-maintained replacement for
 [noTunes](https://github.com/tombonez/noTunes), whose Music-blocking approach
 this reuses (it's the correct one), extended with a lower-level fix for the
