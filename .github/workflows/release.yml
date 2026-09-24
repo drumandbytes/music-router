@@ -13,6 +13,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: true  # this workflow pushes with the checkout's credentials
 
       - name: Derive version
         id: version
@@ -23,18 +25,21 @@ jobs:
 
       - name: Zip app
         id: zip
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           cd build
-          zip -ry "MusicRouter-${{ steps.version.outputs.version }}.zip" MusicRouter.app
-          echo "sha256=$(shasum -a 256 MusicRouter-${{ steps.version.outputs.version }}.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          zip -ry "MusicRouter-${VERSION}.zip" MusicRouter.app
+          echo "sha256=$(shasum -a 256 "MusicRouter-${VERSION}.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          ASSET="build/MusicRouter-${{ steps.version.outputs.version }}.zip"
-          TAG="${{ github.ref_name }}"
+          ASSET="build/MusicRouter-${VERSION}.zip"
+          TAG="$GITHUB_REF_NAME"
 
           # release-please creates the release (with its own changelog) before
           # this tag push ever reaches here — attach the build to that one
@@ -52,6 +57,8 @@ jobs:
         with:
           client-id: ${{ secrets.DNB_ROBOT_CLIENT_ID }}
           private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          # Only what this job needs (release upload here, cask commit to homebrew-tap), not the app's whole grant.
+          permission-contents: write
           owner: drumandbytes
           repositories: music-router,homebrew-tap
 
