@@ -41,23 +41,20 @@ jobs:
           ASSET="build/MusicRouter-${VERSION}.zip"
           TAG="$GITHUB_REF_NAME"
 
-          # release-please creates the release (with its own changelog) before
-          # this tag push ever reaches here — attach the build to that one
-          # instead of trying to create a competing release for the same tag.
+          # release-please already created this tag's release; attach to it.
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET"
           else
             gh release create "$TAG" "$ASSET" --title "$TAG" --generate-notes
           fi
 
-      # Short-lived token for the dnb-robot GitHub App, scoped to this repo and
-      # homebrew-tap. The default GITHUB_TOKEN can't write to another repo.
+      # dnb-robot, scoped to this repo and homebrew-tap; GITHUB_TOKEN can't
+      # write to another repo.
       - uses: actions/create-github-app-token@v3
         id: app_token
         with:
           client-id: ${{ secrets.DNB_ROBOT_CLIENT_ID }}
           private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
-          # Only what this job needs (release upload here, cask commit to homebrew-tap), not the app's whole grant.
           permission-contents: write
           owner: drumandbytes
           repositories: music-router,homebrew-tap
