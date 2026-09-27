@@ -158,6 +158,10 @@ entitlement is present — `scripts/build-app.sh` already applies
 `Resources/MusicRouter.entitlements`, so only the identity and `--options
 runtime` need adding.
 
+## How it was made
+
+Built with the help of an AI coding assistant (Claude). I review and test what gets published.
+
 ## License
 
 MIT
