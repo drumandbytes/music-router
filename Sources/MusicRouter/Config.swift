@@ -1,7 +1,6 @@
 import AppKit
 
-/// User-facing configuration, stored as standard macOS `defaults` — readable/
-/// writable from the menu bar (see `StatusBarController`) or the terminal:
+/// Config in standard `defaults`, editable from the menu bar or terminal:
 ///
 ///   defaults write dev.drumandbytes.musicrouter replacement /Applications/Spotify.app
 ///   defaults write dev.drumandbytes.musicrouter replacement https://music.youtube.com/
@@ -9,13 +8,9 @@ import AppKit
 enum Config {
     static let domain = "dev.drumandbytes.musicrouter"
 
-    // NOT UserDefaults(suiteName: domain) — that's for sharing defaults with
-    // a *different* bundle ID (extensions, app groups). Since domain here is
-    // this app's own bundle ID, UserDefaults.standard already reads/writes
-    // exactly ~/Library/Preferences/dev.drumandbytes.musicrouter.plist.
+    // .standard, not suiteName: domain is our own bundle ID
 
-    /// App path or URL to open instead of Music.app/iTunes. `nil` means
-    /// block-only, matching noTunes' default behavior.
+    /// App path or URL to open instead of Music.app. `nil` = block only (noTunes default).
     static var replacement: String? {
         get { UserDefaults.standard.string(forKey: "replacement") }
         set {
@@ -27,34 +22,26 @@ enum Config {
         }
     }
 
-    /// Set once the permission prompt has been shown, so it only ever
-    /// interrupts the user on first launch — later launches poll silently
-    /// (see `AppDelegate`) instead of re-alerting every time.
+    /// Set once the permission prompt has shown; later launches poll silently.
     static var hasRequestedPermissions: Bool {
         get { UserDefaults.standard.bool(forKey: "hasRequestedPermissions") }
         set { UserDefaults.standard.set(newValue, forKey: "hasRequestedPermissions") }
     }
 
-    /// Whether the menu bar icon is hidden (see `StatusBarController`).
-    /// Relaunching the app while this is true un-hides it again.
+    /// Menu bar icon hidden. Relaunching un-hides it.
     static var menuBarIconHidden: Bool {
         get { UserDefaults.standard.bool(forKey: "menuBarIconHidden") }
         set { UserDefaults.standard.set(newValue, forKey: "menuBarIconHidden") }
     }
 
-    /// Whether interception is active. Defaults to true, hence `object(forKey:)`
-    /// rather than `bool(forKey:)` (which would read an unset key as false).
-    /// Persisted because an in-memory-only flag meant switching it off
-    /// silently undid itself on the next launch — every login, with Launch
-    /// at Login on.
+    /// Defaults to true, hence `object(forKey:)`. Persisted, or switching off
+    /// silently undid itself at the next login.
     static var isEnabled: Bool {
         get { UserDefaults.standard.object(forKey: "enabled") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "enabled") }
     }
 
-    /// A curated shortcut list for the "Replacement App" menu. Native apps
-    /// are filtered to ones actually installed; web players always show
-    /// since there's nothing to check. "Choose App…" covers anything else.
+    /// Shortcuts for the "Replacement App" menu. Native apps only if installed.
     static let predefinedApps: [(name: String, target: String)] = [
         (name: "Spotify", target: "/Applications/Spotify.app"),
         (name: "TIDAL", target: "/Applications/TIDAL.app"),
@@ -69,26 +56,19 @@ enum Config {
         predefinedApps.filter { isWebURL($0.target) || FileManager.default.fileExists(atPath: $0.target) }
     }
 
-    /// A configured native app that's since been uninstalled or moved. Both
-    /// the AppleScript command and the plain-open fallback fail silently in
-    /// that state, so the menu flags it rather than leaving a dead media key
-    /// with no explanation anywhere.
+    /// Configured native app since uninstalled/moved. Both launch paths fail
+    /// silently then, so the menu flags it.
     static var replacementIsMissing: Bool {
         guard let replacement, !isWebURL(replacement) else { return false }
         return !FileManager.default.fileExists(atPath: replacement)
     }
 
-    /// Pure so it's directly testable — `open` needs no live app/URL to be
-    /// valid, just the string shape.
     static func isWebURL(_ target: String) -> Bool {
         guard let url = URL(string: target), let scheme = url.scheme else { return false }
         return scheme.hasPrefix("http")
     }
 
-    /// Opens the configured replacement app/URL, if any — shared by both
-    /// `MusicLauncherGuard` (launch-then-kill path) and `MediaKeyTap`'s
-    /// handler (root-level intercept path), since both need to react the
-    /// same way once Music.app has been kept from taking the play command.
+    /// Opens the replacement, if any. Shared by `MusicLauncherGuard` and `MediaKeyTap`'s handler.
     static func openReplacement() {
         guard let replacement else { return }
 

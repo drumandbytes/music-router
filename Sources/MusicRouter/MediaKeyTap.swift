@@ -2,31 +2,18 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-/// Intercepts the physical play/pause/next/previous media keys at the
-/// HID/session level, before macOS's default handler can decide "nothing's
-/// listening" and launch Music.app. The handler decides whether to swallow
-/// the event: swallowing it here means Music never launches for this
-/// trigger at all (no launch-then-kill flicker); letting it through lets
-/// macOS's native routing reach whatever already owns Now Playing.
-/// (AirPlay/Handoff/Siri-triggered launches don't go through this path;
-/// `MusicLauncherGuard` covers those the only way anyone knows how to.)
+/// Intercepts media keys at the HID/session level, before macOS decides
+/// nothing's listening and launches Music.app. AirPlay/Handoff/Siri launches
+/// bypass this; `MusicLauncherGuard` covers those.
 ///
-/// Needs BOTH Input Monitoring and Accessibility (System Settings > Privacy
-/// & Security) — confirmed empirically: `CGEventTapCreate` silently returns
-/// nil with only Input Monitoring granted. Reliability is also tied to
-/// code-signing identity: re-signing the app with a different identity, or
-/// launching the raw binary instead of the .app bundle, can silently drop
-/// either grant with no error — see the health-check timer below, and
-/// README for the full explanation.
+/// Needs BOTH Input Monitoring and Accessibility: `CGEventTapCreate` returns
+/// nil with only the first. Re-signing with another identity, or running the
+/// raw binary, can silently drop either grant (see README).
 final class MediaKeyTap {
-    /// Returns whether to swallow the event. `false` lets it pass through
-    /// untouched — used when something else already owns Now Playing, so
-    /// macOS's native routing reaches it directly (see AppDelegate).
+    /// Returns whether to swallow the event; `false` passes it through to the Now Playing owner.
     typealias Handler = (MediaKey, Bool) -> Bool
 
-    // Raw values are the IOKit/hidsystem NX_KEYTYPE_* constants (ev_keymap.h)
-    // for media keys — lets `decode` below go straight from the packed key
-    // code to a case via `MediaKey(rawValue:)`, no separate constants/switch.
+    // raw values are NX_KEYTYPE_* (ev_keymap.h), so decode is just MediaKey(rawValue:)
     enum MediaKey: Int32 {
         case playPause = 16
         case next = 17
@@ -39,8 +26,7 @@ final class MediaKeyTap {
     private var healthCheckTimer: Timer?
     private var shouldBeRunning = false
 
-    // NSEvent.EventType.systemDefined.rawValue — not exposed on CGEventType,
-    // so it has to be matched/masked by raw numeric value instead.
+    // NSEvent.EventType.systemDefined; CGEventType has no case for it
     private static let systemDefinedEventType: UInt32 = 14
 
     init(handler: @escaping Handler) {
@@ -50,15 +36,11 @@ final class MediaKeyTap {
     var hasInputMonitoring: Bool { CGPreflightListenEventAccess() }
     var hasAccessibility: Bool { AXIsProcessTrusted() }
 
-    /// `false` means Input Monitoring and/or Accessibility isn't granted yet
-    /// — call `requestInputMonitoringPermission()`/`requestAccessibilityPermission()`
-    /// to prompt; a started tap installs itself once both are granted.
+    /// `false` = a grant is missing; a started tap installs itself once both exist.
     var hasPermission: Bool { hasInputMonitoring && hasAccessibility }
 
-    /// Requesting both TCC prompts back-to-back only shows the first one —
-    /// macOS silently registers the second request without an alert if it
-    /// arrives while the first is still up. Call these separately, and only
-    /// call the second once the first is confirmed granted (see AppDelegate).
+    /// Back-to-back TCC requests only show the first alert. Request the second
+    /// only after the first is granted (see AppDelegate).
     func requestInputMonitoringPermission() {
         CGRequestListenEventAccess()
     }
@@ -68,10 +50,7 @@ final class MediaKeyTap {
         AXIsProcessTrustedWithOptions(options)
     }
 
-    /// Marks the tap as wanted and keeps trying until it is. The health check
-    /// runs independently of whether this first attempt succeeds, so a
-    /// failure here (no permission yet, or `tapCreate` refusing) is retried
-    /// rather than left permanently dead.
+    /// Marks the tap as wanted; the health check retries until it installs.
     func start() {
         shouldBeRunning = true
         if healthCheckTimer == nil {
@@ -89,12 +68,8 @@ final class MediaKeyTap {
         teardown()
     }
 
-    /// CGEventTaps tied to Input Monitoring can go silently inert after a
-    /// re-sign without the OS reporting it, and `install()` can fail outright
-    /// when a grant is missing — reinstall in either case, for as long as the
-    /// tap is meant to be running. Deliberately not routed through
-    /// `stop()`/`start()`: `stop()` kills this very timer, so a failed
-    /// recovery attempt used to take the retry mechanism down with it.
+    /// Taps can go inert after a re-sign, and install() fails without grants;
+    /// reinstall while wanted. Not via stop()/start(): stop() kills this timer.
     private func healthCheck() {
         guard shouldBeRunning else { return }
         if let tap = eventTap, CGEvent.tapIsEnabled(tap: tap) { return }
@@ -158,10 +133,7 @@ final class MediaKeyTap {
         return handler(mediaKey, isPressed) ? nil : Unmanaged.passUnretained(cgEvent)
     }
 
-    /// Pulls a media key + press state out of an `NSSystemDefined` event's
-    /// packed `data1` field. Pure and static so the bit-masking (the one
-    /// genuinely fiddly part of this class) is directly unit-testable
-    /// without needing a real `CGEvent`/`NSEvent`.
+    /// Unpacks key + press state from `data1`. Static so the bit-masking is unit-testable.
     static func decode(data1: Int) -> (MediaKey, isPressed: Bool)? {
         let keyCode = Int32((data1 & 0xFFFF_0000) >> 16)
         let keyFlags = data1 & 0x0000_FFFF

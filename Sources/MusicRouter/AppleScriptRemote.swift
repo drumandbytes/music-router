@@ -1,11 +1,7 @@
 import Foundation
 
-/// Sends a real playback command to a scriptable app (Spotify, VLC, Music —
-/// all share iTunes' old `playpause`/`next track`/`previous track` verbs),
-/// instead of just opening/focusing it. Runs in-process via `NSAppleScript`
-/// rather than shelling out to `osascript`, so there's no fork/exec on the
-/// media-key hot path — just a one-line script compile + an AppleEvent
-/// round-trip, a few ms at most.
+/// Sends playpause/next/previous to a scriptable app (Spotify, VLC, Music) via
+/// in-process `NSAppleScript`, so no fork/exec on the media-key hot path.
 enum AppleScriptRemote {
     static func verb(for key: MediaKeyTap.MediaKey) -> String {
         switch key {
@@ -15,10 +11,8 @@ enum AppleScriptRemote {
         }
     }
 
-    /// `tell application <path>` auto-launches the app if it isn't running,
-    /// so this doubles as the launch step too — returns `false` (letting the
-    /// caller fall back to a plain open) only when the app doesn't
-    /// understand the command at all, e.g. it has no AppleScript dictionary.
+    /// `tell application` auto-launches the target. `false` means the app
+    /// doesn't understand the command (no dictionary); caller falls back to open.
     ///
     /// ponytail: synchronous AppleEvent call on the main thread — could
     /// briefly stall the menu if the target app is hung. Move to a

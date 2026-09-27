@@ -3,15 +3,11 @@ import XCTest
 
 final class ConfigTests: XCTestCase {
     override func tearDown() {
-        // Leave UserDefaults as we found it — Config reads/writes
-        // UserDefaults.standard directly, keyed by this test process's own
-        // bundle id, not the real app's, but still worth not leaking state
-        // between tests.
+        // restore UserDefaults (test process's own bundle id, but don't leak between tests)
         Config.replacement = nil
         Config.hasRequestedPermissions = false
         Config.menuBarIconHidden = false
-        // Removed rather than set, so the default-true path is what the next
-        // test sees.
+        // removed, not set, so the next test sees the default-true path
         UserDefaults.standard.removeObject(forKey: "enabled")
         super.tearDown()
     }

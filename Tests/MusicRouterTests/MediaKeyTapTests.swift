@@ -2,10 +2,8 @@ import XCTest
 @testable import MusicRouter
 
 final class MediaKeyTapTests: XCTestCase {
-    /// Packs a `data1` value the same way a real NSSystemDefined media-key
-    /// event does — keyCode in the top 16 bits, a pressed/released marker
-    /// (0xA / 0xB) in the flags byte — so tests exercise `decode` the same
-    /// way real HID events do rather than inventing their own format.
+    /// Packs `data1` like a real NSSystemDefined event: keyCode in the top 16
+    /// bits, 0xA/0xB pressed/released in the flags byte.
     private func packed(keyCode: Int, pressed: Bool) -> Int {
         let flags = pressed ? 0xA00 : 0xB00
         return (keyCode << 16) | flags
