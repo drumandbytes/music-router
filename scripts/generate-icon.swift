@@ -1,6 +1,5 @@
 #!/usr/bin/swift
-// Generates Resources/AppIcon.icns from an SF Symbol on a rounded gradient
-// square — no design tools needed. Re-run after tweaking colors/symbol below.
+// Generates Resources/AppIcon.icns from an SF Symbol. Re-run after tweaking below.
 import AppKit
 
 let size = 1024

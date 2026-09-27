@@ -1,13 +1,8 @@
 import AppKit
 
-/// Watches for Music.app/iTunes launches triggered by media keys, AirPlay,
-/// Handoff, or Siri, and kills them immediately — optionally opening a
-/// replacement app or URL instead.
-///
-/// This can't prevent the launch itself (no public veto hook exists for
-/// AirPlay/Handoff/Siri-triggered launches), only react to it as fast as
-/// possible. `MediaKeyTap` handles the one trigger (physical media keys)
-/// where the launch can actually be prevented at the source.
+/// Kills Music.app/iTunes launched by media keys, AirPlay, Handoff or Siri,
+/// optionally opening a replacement. Can only react, not veto; `MediaKeyTap`
+/// prevents the media-key case at the source.
 final class MusicLauncherGuard {
     private static let blockedBundleIDs: Set<String> = [
         "com.apple.Music",
@@ -17,8 +12,7 @@ final class MusicLauncherGuard {
     private var observer: NSObjectProtocol?
 
     func start() {
-        // Same idempotency as MediaKeyTap/NowPlayingObserver: a second start
-        // would orphan the first observer and double-fire forceTerminate().
+        // idempotent: a second start would orphan the observer and double-fire forceTerminate()
         guard observer == nil else { return }
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification,
@@ -36,8 +30,7 @@ final class MusicLauncherGuard {
         observer = nil
     }
 
-    /// Pure so it's directly testable without a real `NSRunningApplication`
-    /// (no public initializer, so one can't be constructed in a test).
+    /// Pure: `NSRunningApplication` has no public init to test with.
     static func shouldBlock(bundleID: String?) -> Bool {
         guard let bundleID else { return false }
         return blockedBundleIDs.contains(bundleID)
@@ -49,11 +42,8 @@ final class MusicLauncherGuard {
             Self.shouldBlock(bundleID: app.bundleIdentifier)
         else { return }
 
-        // Replacement first, terminate second — cuts down how long Music is
-        // visibly on screen before it takes over. (Could react even earlier
-        // via willLaunchApplicationNotification, but the app may not have a
-        // live process yet at that point, so forceTerminate() isn't
-        // guaranteed to work there — not worth it for the extra flicker.)
+        // replacement first to shorten Music's time on screen; willLaunch is
+        // earlier but forceTerminate() isn't reliable there yet
         Config.openReplacement()
         app.forceTerminate()
     }

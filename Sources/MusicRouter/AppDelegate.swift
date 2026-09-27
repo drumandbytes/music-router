@@ -16,26 +16,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mediaKeyTap = tap
 
         if !tap.hasPermission {
-            // Only show the actual system prompts once ever — re-nagging on
-            // every launch while the user hasn't gotten to Settings yet is
-            // annoying. After that, just poll silently.
+            // prompt once ever; after that, poll silently
             if !Config.hasRequestedPermissions {
                 tap.requestInputMonitoringPermission()
                 Config.hasRequestedPermissions = true
             }
-            // Only sequences the second prompt. It must never start the tap
-            // itself: it used to, ignoring enabled state, so granting
-            // permission while the app was switched off re-armed it anyway.
-            // A started tap installs itself once both grants exist.
+            // Only sequences the second prompt; must never start the tap itself
+            // (it once did, re-arming a disabled app). The tap self-installs
+            // once both grants exist.
             permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
                 guard let self, let tap = self.mediaKeyTap else { timer.invalidate(); return }
                 if tap.hasPermission {
                     timer.invalidate()
                     self.permissionCheckTimer = nil
                 } else if tap.hasInputMonitoring, !self.hasRequestedAccessibility {
-                    // Input Monitoring is confirmed granted now, so it's safe
-                    // to prompt for Accessibility next without the two
-                    // prompts colliding.
+                    // Input Monitoring granted; safe to prompt for Accessibility without collision
                     tap.requestAccessibilityPermission()
                     self.hasRequestedAccessibility = true
                 }
@@ -51,24 +46,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusBar = statusBar
     }
 
-    // Without this, quitting leaves the media-control child process orphaned
-    // and running forever instead of exiting with its parent.
+    // else the media-control child outlives us
     func applicationWillTerminate(_ notification: Notification) {
         nowPlayingObserver.stop()
     }
 
-    // The documented hook for "user tried to open the app again while it's
-    // already running" (double-clicking it in Finder, `open` from Terminal,
-    // etc. — not just Dock icon clicks). Confirmed empirically (3/3 clean
-    // runs) over applicationDidBecomeActive, which only fires when
-    // activation state actually changes and missed most reopens.
+    // Catches every "opened while running" (Finder, `open`), unlike
+    // applicationDidBecomeActive, which missed most reopens in testing.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         statusBar?.unhideIfNeeded()
         return true
     }
 
-    /// Decides whether `MediaKeyTap` should swallow the event, and fires the
-    /// side effect (launching/controlling the replacement) when it does.
+    /// Decides whether `MediaKeyTap` swallows the event, and launches/controls the replacement if so.
     private func shouldSwallow(_ key: MediaKeyTap.MediaKey, isPressed: Bool) -> Bool {
         let swallow = Self.decideSwallow(
             isPressed: isPressed,
@@ -82,27 +72,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return swallow
     }
 
-    /// Pure so it's directly testable without a real `NowPlayingObserver`.
-    /// Release events mirror whatever was decided for the press, so a
-    /// swallowed press can't leave a stray key-up passed through to the OS
-    /// (or vice versa) — `isSomethingOpen` could in theory change between
-    /// the two, though not in the sub-second window between a real press
-    /// and release. When pressed, swallow (and redirect) exactly when
-    /// nothing already owns Now Playing — otherwise back off and let
-    /// macOS's native routing reach it directly, as it would if this app
-    /// didn't exist.
+    /// Swallow (and redirect) only when nothing owns Now Playing; otherwise let
+    /// macOS route it. Releases mirror the press so no stray key-up leaks.
     static func decideSwallow(isPressed: Bool, isSomethingOpen: Bool, lastKeySwallowed: Bool) -> Bool {
         guard isPressed else { return lastKeySwallowed }
         return !isSomethingOpen
     }
 
     private func handleMediaKey(_ key: MediaKeyTap.MediaKey) {
-        // Nothing's playing yet, so there's no existing Now Playing session
-        // to send a command to — launch the configured replacement instead.
-        // For a scriptable native app, force it into a playing state via
-        // AppleScript rather than just opening a window; falls back to a
-        // plain open for web replacements (can't script a browser tab) and
-        // for native apps with no AppleScript dictionary.
+        // nothing playing: launch the replacement, AppleScript-forcing play
+        // where it can; plain open for web players and unscriptable apps
         if let replacement = Config.replacement,
            !Config.isWebURL(replacement),
            AppleScriptRemote.send(key, toAppAtPath: replacement) {

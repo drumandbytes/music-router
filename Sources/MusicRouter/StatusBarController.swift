@@ -4,8 +4,6 @@ import CoreGraphics
 import ServiceManagement
 import UniformTypeIdentifiers
 
-/// Menu bar icon: shows current state, lets you toggle blocking, pick a
-/// replacement app, enable launch-at-login, hide the icon, and quit.
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var isEnabled = Config.isEnabled
@@ -24,15 +22,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         unhideIfNeeded()
     }
 
-    // appearsDisabled dims the button image natively — no separate
-    // "off" icon asset needed.
+    // appearsDisabled dims it natively, no "off" asset
     private func updateIcon() {
         statusItem.button?.appearsDisabled = !isEnabled
     }
 
-    /// A hidden `NSStatusItem` has no menu of its own to undo the hide from,
-    /// so relaunching the app (fresh launch or reopening a running instance)
-    /// is the only way back — called from both.
+    /// A hidden item has no menu to unhide from; relaunch is the only way back.
     func unhideIfNeeded() {
         guard Config.menuBarIconHidden else { return }
         Config.menuBarIconHidden = false
@@ -76,11 +71,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         hideItem.target = self
         menu.addItem(hideItem)
 
-        // One line, refreshed in menuWillOpen — surfaces the dual Input
-        // Monitoring + Accessibility requirement (undocumented by Apple,
-        // easy to half-grant) instead of leaving a silent, unexplained
-        // "media keys don't work" as the only symptom. Always clickable:
-        // resetting is a harmless no-op to re-confirm when already granted.
+        // Surfaces the easy-to-half-grant dual permission instead of silently
+        // dead keys. Resetting when already granted is harmless.
         let permissionsItem = NSMenuItem(title: "", action: #selector(resetPermissions), keyEquivalent: "")
         permissionsItem.target = self
         menu.addItem(permissionsItem)
@@ -116,18 +108,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         return menu
     }
 
-    /// Refreshes state-dependent items right before the menu shows, rather
-    /// than only at launch — a permission granted in System Settings, or a
-    /// replacement app installed/uninstalled while this runs, shows up
-    /// without quitting and reopening the app.
+    /// Refresh on open so grants and installs made while running show up.
     func menuWillOpen(_ menu: NSMenu) {
         replacementItem?.submenu = buildReplacementMenu()
 
         let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
         let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
-        // "Accessibility" was renamed "Device Control and Data Access" in
-        // macOS 27 — same underlying permission, so both names are shown
-        // rather than picking one that's wrong on half of supported macOS.
+        // macOS 27 renamed Accessibility to "Device Control and Data Access"; show both
         permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility/Device Control \(accessibility))"
     }
 
@@ -160,10 +147,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             submenu.addItem(item)
         }
 
-        // Checked against what's actually listed above, not the full
-        // predefined list: a predefined app that's since been uninstalled is
-        // filtered out of the list, so checking the unfiltered one left the
-        // menu showing no selection at all.
+        // check against the filtered list, or an uninstalled selection shows nothing checked
         if let current, !available.contains(where: { $0.target == current }) {
             let label = Config.isWebURL(current) ? current : (current as NSString).lastPathComponent
             let suffix = Config.replacementIsMissing ? " (not found)" : ""
@@ -269,14 +253,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         Config.replacement = text
     }
 
-    /// Clears both TCC grants for this app's bundle ID so they can be
-    /// re-requested cleanly — the fix for the grant silently going stale
-    /// after a rebuild changes the app's code-signing identity (see README).
-    /// Also clears `hasRequestedPermissions` so the relaunched process
-    /// actually re-prompts instead of just polling silently forever, then
-    /// relaunches itself — a fresh process is required for the OS to
-    /// re-evaluate the (now cleared) grants, and leaving that step to the
-    /// user manually is a step they can just forget.
+    /// Clears both TCC grants (they go stale when the signing identity changes)
+    /// and `hasRequestedPermissions`, then relaunches so the OS re-evaluates.
     @objc private func resetPermissions() {
         let confirm = NSAlert()
         confirm.messageText = "Reset Permissions?"
@@ -295,10 +273,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         Config.hasRequestedPermissions = false
 
-        // `-n` forces a genuinely new process — without it, `open` sees the
-        // bundle already running and just re-activates this same instance,
-        // which then immediately quits from terminate() below instead of
-        // being replaced by a fresh one.
+        // -n: a new process; otherwise open reactivates us and we just quit
         let relaunch = Process()
         relaunch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         relaunch.arguments = ["-n", Bundle.main.bundleURL.path]
@@ -307,8 +282,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showAbout() {
-        // Accessory apps (no Dock icon) don't auto-activate — without this
-        // the panel can open behind whatever's currently frontmost.
+        // accessory apps don't auto-activate; else the panel opens behind
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(nil)
     }

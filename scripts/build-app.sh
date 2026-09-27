@@ -21,15 +21,13 @@ cp "Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
 
 PLIST="$BUNDLE/Contents/Info.plist"
 cp Resources/Info.plist "$PLIST"
-# PlistBuddy sets keys by name and fails loudly on a typo; the old sed
-# matched a literal placeholder value and silently no-op'd if it changed.
+# PlistBuddy fails loudly on a typo key; the old sed no-op'd silently
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$PLIST"
 
 echo "Signing (ad-hoc)..."
-# The apple-events entitlement is inert without hardened runtime, but is
-# required under it — add `--options runtime` alongside a Developer ID
-# identity when notarizing, or AppleScriptRemote's commands get denied.
+# apple-events entitlement is required under hardened runtime: add
+# `--options runtime` with a Developer ID when notarizing.
 codesign --force --sign - --entitlements Resources/MusicRouter.entitlements "$BUNDLE"
 
 echo "Built: $BUNDLE"

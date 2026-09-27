@@ -1,15 +1,8 @@
 import Foundation
 
-/// Tracks whether *something* is already registered as the system's Now
-/// Playing session — native app or a browser tab, anything using the Media
-/// Session/MediaRemote machinery — via the `media-control` CLI
-/// (https://formulae.brew.sh/formula/media-control, a Homebrew dependency
-/// declared on the cask). No public API exposes this; `media-control` wraps
-/// the private `MediaRemote` framework so we don't have to vendor it.
-///
-/// Runs `media-control stream` once as a long-lived subprocess and caches
-/// the latest state in memory, so each media-key press just reads an
-/// already-current flag — no subprocess spawn on the key-press path.
+/// Tracks whether anything owns Now Playing (native app or browser tab) via
+/// the `media-control` CLI, which wraps private MediaRemote. One long-lived
+/// `media-control stream` keeps a cached flag, so key presses spawn nothing.
 final class NowPlayingObserver {
     private static let executablePaths = [
         "/opt/homebrew/bin/media-control",
@@ -35,20 +28,13 @@ final class NowPlayingObserver {
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             guard !chunk.isEmpty else { return }
-            // Pipe callbacks fire on a background thread, but `stop()` (from
-            // the main thread) also touches `buffer` — hop to main so it's
-            // never mutated from two threads at once.
+            // pipe callbacks are off-main; stop() touches buffer on main
             DispatchQueue.main.async { self?.consume(chunk) }
         }
 
-        // If the child dies (crash, killed, a future macOS update breaking
-        // the technique this CLI relies on), EOF alone wouldn't tell us —
-        // readabilityHandler just gets empty data, which is otherwise
-        // ignored. Without this, isSomethingOpen would freeze at its last
-        // value forever, possibly stuck "true" and permanently suppressing
-        // key interception. Falling back to false matches the safe,
-        // pre-this-feature default, and clearing process/pipe lets a later
-        // start() (e.g. toggling Enabled off/on) relaunch it.
+        // EOF alone is invisible (empty data is ignored), so on child exit fall
+        // back to false (safe default) and clear process/pipe so start() can
+        // relaunch; else isSomethingOpen could stick "true" forever.
         task.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async {
                 self?.isSomethingOpen = false
@@ -74,8 +60,7 @@ final class NowPlayingObserver {
         buffer.removeAll()
     }
 
-    /// `stream` emits newline-delimited JSON; with `--no-diff` each line is
-    /// a full snapshot, so no diff-merging is needed — just the latest line.
+    /// With `--no-diff` each line is a full snapshot; only the latest matters.
     private func consume(_ chunk: Data) {
         buffer.append(chunk)
         while let newline = buffer.firstIndex(of: 0x0A) {
@@ -87,9 +72,7 @@ final class NowPlayingObserver {
         }
     }
 
-    /// Pure so it's directly testable with sample stream-line JSON without a
-    /// running subprocess. `nil` means the line didn't parse (ignored by the
-    /// caller — keeps the last known state rather than resetting to false).
+    /// `nil` = unparseable line; caller keeps the last known state.
     static func hasNowPlayingApp(jsonLine: Data) -> Bool? {
         struct StreamLine: Decodable {
             struct Payload: Decodable { let bundleIdentifier: String? }
