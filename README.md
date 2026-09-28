@@ -6,6 +6,8 @@ actually get them.
 
 [More Drumandbytes projects](https://drumandbytes.com/projects/)
 
+<img src="docs/about.png" alt="Music Router About window, version 0.4.3" width="295">
+
 Built as a more functional, actively-maintained replacement for
 [noTunes](https://github.com/tombonez/noTunes), whose Music-blocking approach
 this reuses (it's the correct one), extended with a lower-level fix for the
@@ -90,6 +92,8 @@ for a personally-distributed tool), macOS will show the normal one-time
 Settings → Privacy & Security → Open Anyway.
 
 ## Menu bar
+
+<img src="docs/menu.png" alt="Music Router menu: Enabled, Replacement App, Launch at Login, Hide Menu Bar Icon, Reset Permissions, About, Help, Quit" width="532">
 
 Click the note icon for:
 
