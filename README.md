@@ -4,7 +4,7 @@ A menu-bar utility that stops Music.app/iTunes from launching when you don't
 want it to, and routes your keyboard's media keys to whichever app should
 actually get them.
 
-[More Drumandbytes projects](https://drumandbytes.com/projects/)
+[More Drumandbytes projects](https://drumandbytes.com/projects/?ref=music-router-readme)
 
 <img src="docs/about.png" alt="Music Router About window, version 0.4.3" width="295">
 
