@@ -71,6 +71,23 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         hideItem.target = self
         menu.addItem(hideItem)
 
+        let debugItem = NSMenuItem(
+            title: "Debug Logging",
+            action: #selector(toggleDebugLogging),
+            keyEquivalent: ""
+        )
+        debugItem.target = self
+        debugItem.state = Config.debugLogging ? .on : .off
+        menu.addItem(debugItem)
+
+        let revealLogItem = NSMenuItem(
+            title: "Reveal Log in Finder",
+            action: #selector(revealLog),
+            keyEquivalent: ""
+        )
+        revealLogItem.target = self
+        menu.addItem(revealLogItem)
+
         // Surfaces the easy-to-half-grant dual permission instead of silently
         // dead keys. Resetting when already granted is harmless.
         let permissionsItem = NSMenuItem(title: "", action: #selector(resetPermissions), keyEquivalent: "")
@@ -197,6 +214,21 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             NSLog("MusicRouter: failed to toggle login item: \(error)")
         }
         sender.state = SMAppService.mainApp.status == .enabled ? .on : .off
+    }
+
+    @objc private func toggleDebugLogging(_ sender: NSMenuItem) {
+        Config.debugLogging.toggle()
+        sender.state = Config.debugLogging ? .on : .off
+        DebugLog.shared.log("debug logging on")
+    }
+
+    @objc private func revealLog() {
+        let url = DebugLog.shared.url
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else {
+            NSWorkspace.shared.open(url.deletingLastPathComponent())
+        }
     }
 
     @objc private func hideMenuBarIcon() {

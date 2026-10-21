@@ -107,6 +107,8 @@ Click the note icon for:
 - **Hide Menu Bar Icon** — since a hidden `NSStatusItem` has no menu of its
   own to undo this from, relaunching the app (even while it's already
   running — double-click it again in Finder) un-hides it.
+- **Debug Logging** / **Reveal Log in Finder** — off by default; see
+  "Reporting a bug" below.
 - **Reset Permissions** — shows Input Monitoring/Accessibility grant status
   inline, and (after confirming) clears both via `tccutil reset` and
   relaunches the app so you can re-grant them. See "A note on signing" below
@@ -117,6 +119,20 @@ replacement <path-or-url>` (and `defaults delete … replacement` for
 block-only) works too if you'd rather script it — e.g. from your own
 dotfiles setup.
 
+## Reporting a bug
+
+Turn on **Debug Logging** in the menu (or `defaults write
+dev.drumandbytes.musicrouter debugLogging -bool true`), reproduce the
+problem, then use **Reveal Log in Finder** and attach
+`~/Library/Logs/MusicRouter.log` to your issue.
+
+The log records only: which of the three media keys was pressed (play/pause,
+next, previous) and whether it was swallowed or passed through, the bundle ID
+of whichever app owns Now Playing and when that changes, and
+`media-control`/event-tap start and stop. Never other keys, track titles,
+artists, or window contents. It rotates at 2 MB, keeping one older file
+(`MusicRouter.log.1`), and costs nothing while off.
+
 ## Testing
 
 ```bash
@@ -124,8 +140,10 @@ swift test
 ```
 
 Covers the pure, directly-testable pieces: `MediaKeyTap.decode`'s media-key
-bit-unpacking, `Config`'s persistence/URL-vs-path logic, and
-`MusicLauncherGuard`'s bundle-ID matching. Not attempting to test the
+bit-unpacking, `Config`'s persistence/URL-vs-path logic,
+`MusicLauncherGuard`'s bundle-ID matching, and `DebugLog`'s gating and
+rotation. CI prints a coverage summary (no external service); the
+untestable AppKit/event-tap code keeps the total low by design. Not attempting to test the
 `CGEventTap`/TCC machinery itself — that needs a real
 signed app, a real permission grant, and a real key press, none of which are
 practical in CI (see "A note on signing" below for how flaky that

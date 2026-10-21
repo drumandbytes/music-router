@@ -20,4 +20,16 @@ final class NowPlayingObserverTests: XCTestCase {
     func testReturnsNilForUnparsableLine() {
         XCTAssertNil(NowPlayingObserver.hasNowPlayingApp(jsonLine: Data("not json".utf8)))
     }
+
+    func testParseExposesBundleID() {
+        let line = #"{"type":"data","diff":false,"payload":{"bundleIdentifier":"com.brave.Browser","title":"secret"}}"#
+        XCTAssertEqual(NowPlayingObserver.parse(jsonLine: Data(line.utf8)), .some("com.brave.Browser"))
+    }
+
+    func testParseDistinguishesNothingPlayingFromUnparsable() {
+        let empty = NowPlayingObserver.parse(jsonLine: Data(#"{"payload":{}}"#.utf8))
+        XCTAssertNotNil(empty)
+        XCTAssertNil(empty!)
+        XCTAssertNil(NowPlayingObserver.parse(jsonLine: Data("nope".utf8)))
+    }
 }

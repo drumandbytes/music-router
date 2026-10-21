@@ -35,4 +35,11 @@ final class MediaKeyTapTests: XCTestCase {
         let result = MediaKeyTap.decode(data1: packed(keyCode: 99, pressed: true))
         XCTAssertNil(result)
     }
+
+    /// The tap must never surface anything but the three media keys.
+    func testDecodeRejectsEveryNonMediaKeyCode() {
+        for code in (0...255) where ![16, 17, 18].contains(code) {
+            XCTAssertNil(MediaKeyTap.decode(data1: packed(keyCode: code, pressed: true)), "keyCode \(code)")
+        }
+    }
 }

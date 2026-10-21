@@ -14,6 +14,7 @@ final class NowPlayingObserver {
     private var pipe: Pipe?
     private var buffer = Data()
     private var wantsRunning = false
+    private var lastBundleID: String?
 
     func start() {
         wantsRunning = true
@@ -42,7 +43,9 @@ final class NowPlayingObserver {
         task.terminationHandler = { [weak self, weak task] _ in
             DispatchQueue.main.async {
                 guard let self, let task, self.process === task else { return }
+                DebugLog.shared.log("media-control stream exited, restarting in 2s", collapseRepeats: true)
                 self.isSomethingOpen = false
+                self.lastBundleID = nil
                 self.process = nil
                 self.pipe = nil
                 self.buffer.removeAll()
@@ -55,10 +58,12 @@ final class NowPlayingObserver {
 
         do {
             try task.run()
+            DebugLog.shared.log("media-control stream started")
             process = task
             self.pipe = pipe
         } catch {
             NSLog("MusicRouter: failed to start media-control stream: \(error)")
+            DebugLog.shared.log("media-control stream failed to start: \(error)", collapseRepeats: true)
         }
     }
 
@@ -77,19 +82,28 @@ final class NowPlayingObserver {
         while let newline = buffer.firstIndex(of: 0x0A) {
             let line = buffer.subdata(in: buffer.startIndex..<newline)
             buffer.removeSubrange(buffer.startIndex...newline)
-            if let open = Self.hasNowPlayingApp(jsonLine: line) {
-                isSomethingOpen = open
+            if let bundleID = Self.parse(jsonLine: line) {
+                isSomethingOpen = bundleID != nil
+                if bundleID != lastBundleID {
+                    DebugLog.shared.log("nowPlaying owner=\(bundleID ?? "none")")
+                    lastBundleID = bundleID
+                }
             }
         }
     }
 
-    /// `nil` = unparseable line; caller keeps the last known state.
-    static func hasNowPlayingApp(jsonLine: Data) -> Bool? {
+    /// Outer `nil` = unparseable line (caller keeps the last known state);
+    /// inner `nil` = parsed, nothing owns Now Playing.
+    static func parse(jsonLine: Data) -> String?? {
         struct StreamLine: Decodable {
             struct Payload: Decodable { let bundleIdentifier: String? }
             let payload: Payload
         }
         guard let line = try? JSONDecoder().decode(StreamLine.self, from: jsonLine) else { return nil }
-        return line.payload.bundleIdentifier != nil
+        return .some(line.payload.bundleIdentifier)
+    }
+
+    static func hasNowPlayingApp(jsonLine: Data) -> Bool? {
+        parse(jsonLine: jsonLine).map { $0 != nil }
     }
 }
