@@ -13,8 +13,10 @@ final class NowPlayingObserver {
     private var process: Process?
     private var pipe: Pipe?
     private var buffer = Data()
+    private var wantsRunning = false
 
     func start() {
+        wantsRunning = true
         guard process == nil,
               let path = Self.executablePaths.first(where: { FileManager.default.fileExists(atPath: $0) })
         else { return }
@@ -33,13 +35,21 @@ final class NowPlayingObserver {
         }
 
         // EOF alone is invisible (empty data is ignored), so on child exit fall
-        // back to false (safe default) and clear process/pipe so start() can
-        // relaunch; else isSomethingOpen could stick "true" forever.
-        task.terminationHandler = { [weak self] _ in
+        // back to false (safe default) and clear process/pipe, then relaunch:
+        // a dead stream would otherwise pin isSomethingOpen at false and send
+        // every media key to the replacement app. The identity check skips
+        // exits from stop() and from an already-replaced child.
+        task.terminationHandler = { [weak self, weak task] _ in
             DispatchQueue.main.async {
-                self?.isSomethingOpen = false
-                self?.process = nil
-                self?.pipe = nil
+                guard let self, let task, self.process === task else { return }
+                self.isSomethingOpen = false
+                self.process = nil
+                self.pipe = nil
+                self.buffer.removeAll()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    guard let self, self.wantsRunning else { return }
+                    self.start()
+                }
             }
         }
 
@@ -53,6 +63,7 @@ final class NowPlayingObserver {
     }
 
     func stop() {
+        wantsRunning = false
         pipe?.fileHandleForReading.readabilityHandler = nil
         process?.terminate()
         process = nil
