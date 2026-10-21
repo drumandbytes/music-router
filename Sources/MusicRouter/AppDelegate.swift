@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         if isPressed {
             lastKeySwallowed = swallow
+            DebugLog.shared.log("key=\(key) open=\(nowPlayingObserver.isSomethingOpen) swallowed=\(swallow)")
             if swallow { handleMediaKey(key) }
         }
         return swallow
@@ -91,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setEnabled(_ enabled: Bool) {
+        DebugLog.shared.log("enabled=\(enabled)")
         if enabled {
             launcherGuard.start()
             nowPlayingObserver.start()

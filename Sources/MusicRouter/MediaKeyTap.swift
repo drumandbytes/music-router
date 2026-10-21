@@ -101,9 +101,11 @@ final class MediaKeyTap {
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        DebugLog.shared.log("event tap installed")
     }
 
     private func teardown() {
+        if eventTap != nil { DebugLog.shared.log("event tap removed") }
         if let tap = eventTap {
             CGEvent.tapEnable(tap: tap, enable: false)
         }

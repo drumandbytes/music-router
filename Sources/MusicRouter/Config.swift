@@ -34,6 +34,12 @@ enum Config {
         set { UserDefaults.standard.set(newValue, forKey: "menuBarIconHidden") }
     }
 
+    /// Writes diagnostics to ~/Library/Logs/MusicRouter.log (see `DebugLog`).
+    static var debugLogging: Bool {
+        get { UserDefaults.standard.bool(forKey: "debugLogging") }
+        set { UserDefaults.standard.set(newValue, forKey: "debugLogging") }
+    }
+
     /// Defaults to true, hence `object(forKey:)`. Persisted, or switching off
     /// silently undid itself at the next login.
     static var isEnabled: Bool {

@@ -14,7 +14,13 @@ jobs:
         with:
           persist-credentials: false
       - run: swift build
-      - run: swift test
+      - run: swift test --enable-code-coverage
+      - name: Coverage summary
+        run: |
+          xcrun llvm-cov report \
+            .build/debug/MusicRouterTests.xctest/Contents/MacOS/MusicRouterTests \
+            -instr-profile=.build/debug/codecov/default.profdata \
+            -ignore-filename-regex='\.build|Tests' | tee -a "$GITHUB_STEP_SUMMARY"
 
   zizmor:
     uses: drumandbytes/reusable-actions/.github/workflows/zizmor.yml@v1
