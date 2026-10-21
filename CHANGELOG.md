@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/drumandbytes/music-router/compare/v0.4.4...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* opt-in debug logging to ~/Library/Logs/MusicRouter.log ([#28](https://github.com/drumandbytes/music-router/issues/28)) ([02bebfd](https://github.com/drumandbytes/music-router/commit/02bebfd233dd3a30531b9f97ce2780c0b1de2d68))
+
 ## [0.4.4](https://github.com/drumandbytes/music-router/compare/v0.4.3...v0.4.4) (2026-10-21)
 
 
