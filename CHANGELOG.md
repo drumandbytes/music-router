@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/drumandbytes/music-router/compare/v0.4.3...v0.4.4) (2026-10-21)
+
+
+### Bug Fixes
+
+* restart media-control stream after it exits ([#26](https://github.com/drumandbytes/music-router/issues/26)) ([560da9d](https://github.com/drumandbytes/music-router/commit/560da9d89f86ec85a89368f65dfc4677985e63a9))
+
 ## [0.4.3](https://github.com/drumandbytes/music-router/compare/v0.4.2...v0.4.3) (2026-09-16)
 
 
