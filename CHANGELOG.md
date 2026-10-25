@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/drumandbytes/music-router/compare/v0.5.0...v0.6.0) (2026-10-25)
+
+
+### Features
+
+* settings window, usable with the menu bar icon hidden ([#30](https://github.com/drumandbytes/music-router/issues/30)) ([16a7a3c](https://github.com/drumandbytes/music-router/commit/16a7a3c764e6f96c8cabc4bdca2257376d33300e))
+
 ## [0.5.0](https://github.com/drumandbytes/music-router/compare/v0.4.4...v0.5.0) (2026-10-21)
 
 
