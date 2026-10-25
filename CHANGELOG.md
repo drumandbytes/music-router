@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/drumandbytes/music-router/compare/v0.6.1...v0.6.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* place settings window inside the visible screen area ([#34](https://github.com/drumandbytes/music-router/issues/34)) ([a3dd09b](https://github.com/drumandbytes/music-router/commit/a3dd09b6f6836a06d6812ba03cd07267d42e9af2))
+
 ## [0.6.1](https://github.com/drumandbytes/music-router/compare/v0.6.0...v0.6.1) (2026-10-25)
 
 
