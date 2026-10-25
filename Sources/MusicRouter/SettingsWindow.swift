@@ -42,66 +42,69 @@ private struct SettingsView: View {
 
     var body: some View {
         Form {
-            Toggle("Enabled", isOn: Binding(
-                get: { model.isEnabled },
-                set: { model.isEnabled = $0; actions.setEnabled($0) }
-            ))
+            Section {
+                Toggle("Enabled", isOn: Binding(
+                    get: { model.isEnabled },
+                    set: { model.isEnabled = $0; actions.setEnabled($0) }
+                ))
 
-            Picker("Replacement app", selection: Binding(
-                get: { model.replacement ?? Self.blockOnly },
-                set: {
-                    Config.replacement = $0 == Self.blockOnly ? nil : $0
-                    model.replacement = Config.replacement
-                }
-            )) {
-                Text("Block only (no redirect)").tag(Self.blockOnly)
-                ForEach(Config.availablePredefinedApps, id: \.target) { app in
-                    Text(Config.isWebURL(app.target) ? "\(app.name) (Web)" : app.name).tag(app.target)
-                }
-                if let current = model.replacement,
-                   !Config.availablePredefinedApps.contains(where: { $0.target == current }) {
-                    let label = Config.isWebURL(current) ? current : (current as NSString).lastPathComponent
-                    Text("\(label)\(Config.replacementIsMissing ? " (not found)" : "")").tag(current)
-                }
+                Picker("Replacement app", selection: Binding(
+                    get: { model.replacement ?? Self.blockOnly },
+                    set: {
+                        Config.replacement = $0 == Self.blockOnly ? nil : $0
+                        model.replacement = Config.replacement
+                    }
+                )) {
+                    Text("Block only (no redirect)").tag(Self.blockOnly)
+                    ForEach(Config.availablePredefinedApps, id: \.target) { app in
+                        Text(Config.isWebURL(app.target) ? "\(app.name) (Web)" : app.name).tag(app.target)
+                    }
+                    if let current = model.replacement,
+                       !Config.availablePredefinedApps.contains(where: { $0.target == current }) {
+                        let label = Config.isWebURL(current) ? current : (current as NSString).lastPathComponent
+                        Text("\(label)\(Config.replacementIsMissing ? " (not found)" : "")").tag(current)
+                    }
             }
             HStack {
                 Button("Choose App…") { actions.chooseApp(); model.refresh() }
                 Button("Custom URL…") { actions.chooseURL(); model.refresh() }
             }
 
-            Divider()
+            }
 
-            Toggle("Launch at login", isOn: Binding(
-                get: { model.launchAtLogin },
-                set: { _ in
-                    LoginItem.toggle()
-                    model.launchAtLogin = SMAppService.mainApp.status == .enabled
-                }
-            ))
-            Toggle("Show menu bar icon", isOn: Binding(
-                get: { model.showMenuBarIcon },
-                set: { model.showMenuBarIcon = $0; actions.setIconHidden(!$0) }
-            ))
-            Toggle("Debug logging", isOn: Binding(
-                get: { model.debugLogging },
-                set: {
-                    Config.debugLogging = $0
-                    model.debugLogging = $0
-                    if $0 { DebugLog.shared.log("debug logging on") }
-                }
-            ))
-            Button("Reveal Log in Finder") { DebugLog.shared.reveal() }
+            Section {
+                Toggle("Launch at login", isOn: Binding(
+                    get: { model.launchAtLogin },
+                    set: { _ in
+                        LoginItem.toggle()
+                        model.launchAtLogin = SMAppService.mainApp.status == .enabled
+                    }
+                ))
+                Toggle("Show menu bar icon", isOn: Binding(
+                    get: { model.showMenuBarIcon },
+                    set: { model.showMenuBarIcon = $0; actions.setIconHidden(!$0) }
+                ))
+                Toggle("Debug logging", isOn: Binding(
+                    get: { model.debugLogging },
+                    set: {
+                        Config.debugLogging = $0
+                        model.debugLogging = $0
+                        if $0 { DebugLog.shared.log("debug logging on") }
+                    }
+                ))
+                Button("Reveal Log in Finder") { DebugLog.shared.reveal() }
 
-            Divider()
+            }
 
-            LabeledContent("Input Monitoring", value: model.inputMonitoring ? "Granted" : "Not granted")
-            // macOS 27 renamed Accessibility to "Device Control and Data Access"
-            LabeledContent("Accessibility / Device Control", value: model.accessibility ? "Granted" : "Not granted")
-            Button("Reset Permissions…") { actions.resetPermissions() }
+            Section {
+                LabeledContent("Input Monitoring", value: model.inputMonitoring ? "Granted" : "Not granted")
+                // macOS 27 renamed Accessibility to "Device Control and Data Access"
+                LabeledContent("Accessibility / Device Control", value: model.accessibility ? "Granted" : "Not granted")
+                Button("Reset Permissions…") { actions.resetPermissions() }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: 440, height: 470)
     }
 }
 
@@ -128,7 +131,6 @@ final class SettingsWindowController: NSWindowController {
         window.title = "Music Router Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
-        window.center()
         super.init(window: window)
     }
 
@@ -138,6 +140,9 @@ final class SettingsWindowController: NSWindowController {
         model.refresh()
         // accessory app: activate or the window opens behind
         NSApp.activate(ignoringOtherApps: true)
+        // center after the hosted content has sized the window, or it lands off-center/off-screen
+        window?.layoutIfNeeded()
+        window?.center()
         window?.makeKeyAndOrderFront(nil)
     }
 }
