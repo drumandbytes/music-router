@@ -28,6 +28,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         statusItem.menu = buildMenu()
         updateIcon()
         statusItem.isVisible = !Config.menuBarIconHidden
+        // no icon means no other way in
+        if Config.menuBarIconHidden { showSettings() }
     }
 
     func showSettings() {
