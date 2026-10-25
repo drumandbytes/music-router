@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/drumandbytes/music-router/compare/v0.6.0...v0.6.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* settings window placement and layout; open on launch when icon is hidden ([#32](https://github.com/drumandbytes/music-router/issues/32)) ([72d01d4](https://github.com/drumandbytes/music-router/commit/72d01d4456f0f3d017c3eb6e227a5019850fb8c0))
+
 ## [0.6.0](https://github.com/drumandbytes/music-router/compare/v0.5.0...v0.6.0) (2026-10-25)
 
 
