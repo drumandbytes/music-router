@@ -140,9 +140,16 @@ final class SettingsWindowController: NSWindowController {
         model.refresh()
         // accessory app: activate or the window opens behind
         NSApp.activate(ignoringOtherApps: true)
-        // center after the hosted content has sized the window, or it lands off-center/off-screen
-        window?.layoutIfNeeded()
-        window?.center()
+        // center() runs before the hosted content has sized the window and can push the
+        // top under the menu bar; place it by hand inside the visible area instead
+        if let window, let area = (window.screen ?? NSScreen.main)?.visibleFrame {
+            window.layoutIfNeeded()
+            let size = window.frame.size
+            window.setFrameOrigin(NSPoint(
+                x: area.midX - size.width / 2,
+                y: max(area.minY, area.midY - size.height / 2)
+            ))
+        }
         window?.makeKeyAndOrderFront(nil)
     }
 }
