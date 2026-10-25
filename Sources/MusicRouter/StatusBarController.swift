@@ -9,6 +9,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private var isEnabled = Config.isEnabled
     private var replacementItem: NSMenuItem?
     private var permissionsItem: NSMenuItem?
+    private var toggleItem: NSMenuItem?
+    private lazy var settings = SettingsWindowController(actions: SettingsActions(
+        setEnabled: { [weak self] in self?.setEnabled($0) },
+        setIconHidden: { [weak self] in self?.setIconHidden($0) },
+        chooseApp: { [weak self] in self?.chooseReplacementApp() },
+        chooseURL: { [weak self] in self?.chooseCustomURL() },
+        resetPermissions: { [weak self] in self?.resetPermissions() }
+    ))
     var onToggle: ((Bool) -> Void)?
 
     override init() {
@@ -19,7 +27,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         statusItem.menu = buildMenu()
         updateIcon()
-        unhideIfNeeded()
+        statusItem.isVisible = !Config.menuBarIconHidden
+    }
+
+    func showSettings() {
+        settings.show()
     }
 
     // appearsDisabled dims it natively, no "off" asset
@@ -27,11 +39,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         statusItem.button?.appearsDisabled = !isEnabled
     }
 
-    /// A hidden item has no menu to unhide from; relaunch is the only way back.
-    func unhideIfNeeded() {
-        guard Config.menuBarIconHidden else { return }
-        Config.menuBarIconHidden = false
-        statusItem.isVisible = true
+    /// A hidden icon has no menu; the settings window (reopen the app) is the way back.
+    private func setIconHidden(_ hidden: Bool) {
+        Config.menuBarIconHidden = hidden
+        statusItem.isVisible = !hidden
     }
 
     private func buildMenu() -> NSMenu {
@@ -45,6 +56,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         toggleItem.target = self
         toggleItem.state = isEnabled ? .on : .off
         menu.addItem(toggleItem)
+        self.toggleItem = toggleItem
 
         menu.addItem(.separator())
 
@@ -62,6 +74,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         loginItem.target = self
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(loginItem)
+
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         let hideItem = NSMenuItem(
             title: "Hide Menu Bar Icon",
@@ -127,6 +147,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     /// Refresh on open so grants and installs made while running show up.
     func menuWillOpen(_ menu: NSMenu) {
+        toggleItem?.state = isEnabled ? .on : .off
         replacementItem?.submenu = buildReplacementMenu()
 
         let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
@@ -195,24 +216,25 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         return submenu
     }
 
+    @objc private func openSettings() {
+        showSettings()
+    }
+
     @objc private func toggleEnabled(_ sender: NSMenuItem) {
-        isEnabled.toggle()
-        Config.isEnabled = isEnabled
-        sender.state = isEnabled ? .on : .off
+        setEnabled(!isEnabled)
+    }
+
+    private func setEnabled(_ enabled: Bool) {
+        guard enabled != isEnabled else { return }
+        isEnabled = enabled
+        Config.isEnabled = enabled
+        toggleItem?.state = enabled ? .on : .off
         updateIcon()
-        onToggle?(isEnabled)
+        onToggle?(enabled)
     }
 
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            NSLog("MusicRouter: failed to toggle login item: \(error)")
-        }
+        LoginItem.toggle()
         sender.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
@@ -223,17 +245,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func revealLog() {
-        let url = DebugLog.shared.url
-        if FileManager.default.fileExists(atPath: url.path) {
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-        } else {
-            NSWorkspace.shared.open(url.deletingLastPathComponent())
-        }
+        DebugLog.shared.reveal()
     }
 
     @objc private func hideMenuBarIcon() {
-        Config.menuBarIconHidden = true
-        statusItem.isVisible = false
+        setIconHidden(true)
     }
 
     @objc private func setBlockOnly() {

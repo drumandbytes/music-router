@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Opt-in diagnostics (`Config.debugLogging`, off by default) written to
@@ -71,5 +72,15 @@ final class DebugLog {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
         return f.string(from: date)
+    }
+}
+
+extension DebugLog {
+    func reveal() {
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else {
+            NSWorkspace.shared.open(url.deletingLastPathComponent())
+        }
     }
 }
