@@ -53,8 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Catches every "opened while running" (Finder, `open`), unlike
     // applicationDidBecomeActive, which missed most reopens in testing.
+    // Works with the menu bar icon hidden, so it's the way back to settings.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        statusBar?.unhideIfNeeded()
+        statusBar?.showSettings()
         return true
     }
 

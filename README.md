@@ -104,9 +104,11 @@ Click the note icon for:
   **Choose App…** for any other local app, **Custom URL…** for any other web
   player, or **Block Only** for no redirect.
 - **Launch at Login** — via `SMAppService`, no manual System Settings step.
-- **Hide Menu Bar Icon** — since a hidden `NSStatusItem` has no menu of its
-  own to undo this from, relaunching the app (even while it's already
-  running — double-click it again in Finder) un-hides it.
+- **Settings…** (⌘,) — a window with the same options, plus permission
+  status. The icon stays hidden across launches; to get back, relaunch the
+  app (even while it's already running — double-click it again in Finder) to
+  open the settings window and tick **Show menu bar icon**.
+- **Hide Menu Bar Icon** — hides the icon; see above for the way back.
 - **Debug Logging** / **Reveal Log in Finder** — off by default; see
   "Reporting a bug" below.
 - **Reset Permissions** — shows Input Monitoring/Accessibility grant status
