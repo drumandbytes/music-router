@@ -14,10 +14,15 @@ swift build -c release
 
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS"
-mkdir -p "$BUNDLE/Contents/Resources"
+mkdir -p "$BUNDLE/Contents/Resources" "$BUNDLE/Contents/Frameworks"
 
 cp ".build/release/${APP_NAME}" "$BUNDLE/Contents/MacOS/${APP_NAME}"
 cp "Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
+
+echo "Building MediaRemoteAdapter.framework..."
+scripts/build-adapter.sh "$BUNDLE/Contents/Frameworks"
+cp third_party/mediaremote-adapter/bin/mediaremote-adapter.pl "$BUNDLE/Contents/Resources/"
+cp third_party/mediaremote-adapter/LICENSE "$BUNDLE/Contents/Resources/mediaremote-adapter-LICENSE"
 
 PLIST="$BUNDLE/Contents/Info.plist"
 cp Resources/Info.plist "$PLIST"

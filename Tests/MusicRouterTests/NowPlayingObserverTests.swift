@@ -32,4 +32,20 @@ final class NowPlayingObserverTests: XCTestCase {
         XCTAssertNil(empty!)
         XCTAssertNil(NowPlayingObserver.parse(jsonLine: Data("nope".utf8)))
     }
+
+    func testAdapterPathsNilWhenNotBundled() {
+        // the xctest bundle has neither the script nor the framework
+        XCTAssertNil(NowPlayingObserver.adapterPaths(in: Bundle(for: NowPlayingObserverTests.self)))
+    }
+
+    func testStartWithoutAdapterIsNoOp() {
+        let observer = NowPlayingObserver()
+        observer.start()
+        XCTAssertFalse(observer.isSomethingOpen)
+        observer.stop()
+    }
+
+    func testPerlHostExists() {
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: NowPlayingObserver.perlPath))
+    }
 }

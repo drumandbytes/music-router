@@ -1,13 +1,25 @@
 import Foundation
 
 /// Tracks whether anything owns Now Playing (native app or browser tab) via
-/// the `media-control` CLI, which wraps private MediaRemote. One long-lived
-/// `media-control stream` keeps a cached flag, so key presses spawn nothing.
+/// the vendored mediaremote-adapter (third_party/mediaremote-adapter, BSD-3).
+/// MediaRemote only answers Apple-signed processes, so we run the adapter's
+/// perl script under /usr/bin/perl (com.apple.perl5), which dlopens the
+/// bundled framework. One long-lived `stream` keeps a cached flag, so key
+/// presses spawn nothing.
 final class NowPlayingObserver {
-    private static let executablePaths = [
-        "/opt/homebrew/bin/media-control",
-        "/usr/local/bin/media-control",
-    ]
+    static let perlPath = "/usr/bin/perl"
+
+    /// Script + framework inside the app bundle, nil when not bundled
+    /// (e.g. `swift run`).
+    static func adapterPaths(in bundle: Bundle = .main) -> (script: String, framework: String)? {
+        guard let script = bundle.url(forResource: "mediaremote-adapter", withExtension: "pl"),
+              let frameworks = bundle.privateFrameworksURL
+        else { return nil }
+        let framework = frameworks.appendingPathComponent("MediaRemoteAdapter.framework")
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: script.path), fm.fileExists(atPath: framework.path) else { return nil }
+        return (script.path, framework.path)
+    }
 
     private(set) var isSomethingOpen = false
     private var process: Process?
@@ -19,12 +31,13 @@ final class NowPlayingObserver {
     func start() {
         wantsRunning = true
         guard process == nil,
-              let path = Self.executablePaths.first(where: { FileManager.default.fileExists(atPath: $0) })
+              let adapter = Self.adapterPaths(),
+              FileManager.default.isExecutableFile(atPath: Self.perlPath)
         else { return }
 
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: path)
-        task.arguments = ["stream", "--no-diff", "--no-artwork"]
+        task.executableURL = URL(fileURLWithPath: Self.perlPath)
+        task.arguments = [adapter.script, adapter.framework, "stream", "--no-diff", "--no-artwork"]
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -43,7 +56,7 @@ final class NowPlayingObserver {
         task.terminationHandler = { [weak self, weak task] _ in
             DispatchQueue.main.async {
                 guard let self, let task, self.process === task else { return }
-                DebugLog.shared.log("media-control stream exited, restarting in 2s", collapseRepeats: true)
+                DebugLog.shared.log("mediaremote-adapter stream exited, restarting in 2s", collapseRepeats: true)
                 self.isSomethingOpen = false
                 self.lastBundleID = nil
                 self.process = nil
@@ -58,12 +71,12 @@ final class NowPlayingObserver {
 
         do {
             try task.run()
-            DebugLog.shared.log("media-control stream started")
+            DebugLog.shared.log("mediaremote-adapter stream started")
             process = task
             self.pipe = pipe
         } catch {
-            NSLog("MusicRouter: failed to start media-control stream: \(error)")
-            DebugLog.shared.log("media-control stream failed to start: \(error)", collapseRepeats: true)
+            NSLog("MusicRouter: failed to start mediaremote-adapter stream: \(error)")
+            DebugLog.shared.log("mediaremote-adapter stream failed to start: \(error)", collapseRepeats: true)
         }
     }
 

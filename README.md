@@ -49,22 +49,24 @@ dictionary (Spotify, VLC, Music all share iTunes' old
 it into a playing state rather than just opening a window; web replacements
 and non-scriptable native apps (e.g. TIDAL) fall back to a plain open.
 
-`NowPlayingObserver` shells out to the
-[`media-control`](https://formulae.brew.sh/formula/media-control) CLI
-(a Homebrew core formula, declared as a cask dependency), which wraps the
-private `MediaRemote` framework via the
-[`mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter)
-`com.apple.perl5`-entitlement technique — reused rather than vendored, so
-there's no framework bundling or build-system dependency on our side. It
-runs once as a long-lived background process (`media-control stream`) at
-launch, caching the latest state in memory, so a media key press only reads
-an already-current flag — no subprocess spawned on the key-press path.
+`NowPlayingObserver` reads Now Playing through the private `MediaRemote`
+framework, which since macOS 15.4 only answers Apple-signed processes. It
+uses the [`mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter)
+technique: `/usr/bin/perl` (signed `com.apple.perl5`) runs the adapter's
+script, which loads a small bundled framework and calls MediaRemote from
+inside that entitled process. A pinned copy (v0.7.7, BSD-3) is vendored under
+`third_party/mediaremote-adapter/`, built into the app by `scripts/build-app.sh`,
+and bundled in the app (`Contents/Frameworks`, `Contents/Resources`), so
+there's no separate install. It runs once as a long-lived background process
+(`perl mediaremote-adapter.pl … stream`) at launch, caching the latest state
+in memory, so a media key press only reads an already-current flag — no
+subprocess spawned on the key-press path.
 
 ## Building
 
-No Xcode required — just the Xcode Command Line Tools (`xcode-select --install`)
-and [`media-control`](https://formulae.brew.sh/formula/media-control)
-(`brew install media-control`) for the Now Playing detection:
+No Xcode required — just the Xcode Command Line Tools (`xcode-select --install`),
+which provide `swift` and `clang` (the vendored adapter framework is compiled
+with `clang` by `scripts/build-adapter.sh`, no CMake):
 
 ```bash
 scripts/build-app.sh [version]   # swift build + bundle assembly + ad-hoc codesign
@@ -131,7 +133,7 @@ problem, then use **Reveal Log in Finder** and attach
 The log records only: which of the three media keys was pressed (play/pause,
 next, previous) and whether it was swallowed or passed through, the bundle ID
 of whichever app owns Now Playing and when that changes, and
-`media-control`/event-tap start and stop. Never other keys, track titles,
+adapter/event-tap start and stop. Never other keys, track titles,
 artists, or window contents. It rotates at 2 MB, keeping one older file
 (`MusicRouter.log.1`), and costs nothing while off.
 
@@ -181,6 +183,15 @@ other apps are denied unless the `com.apple.security.automation.apple-events`
 entitlement is present — `scripts/build-app.sh` already applies
 `Resources/MusicRouter.entitlements`, so only the identity and `--options
 runtime` need adding.
+
+## Third-party code
+
+`third_party/mediaremote-adapter/` is an unmodified copy of
+[ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter)
+v0.7.7 (BSD 3-Clause, © 2025 Jonas van den Berg and contributors; license in
+`third_party/mediaremote-adapter/LICENSE`, also shipped inside the app).
+Only the test client source is omitted. To update, replace the directory
+from a newer tag and update `VERSION` in it.
 
 ## How it was made
 
