@@ -14,6 +14,22 @@ this reuses (it's the correct one), extended with a lower-level fix for the
 keyboard case and real playback control of the replacement app, not just
 launching it.
 
+I wrote it because noTunes hadn't been updated for about 15 months (last commit
+August 2024, as of November 2026) and I wanted it to keep working on current
+macOS, with the media keys behaving too. I use Music Router myself every day.
+
+## Compared with similar tools
+
+- **[noTunes](https://github.com/tombonez/noTunes)** is the original, and
+  Music Router reuses its Music-blocking approach. Its README describes
+  blocking Music/iTunes and a menu bar toggle. Music Router adds the media-key
+  interception (no launch-then-quit flash for key presses), a check for what is
+  already playing, a replacement app it can actually start playing, launch at
+  login and a settings window.
+- **[BeardedSpice](https://github.com/beardedspice/beardedspice)** does a
+  different job: it lets the media keys control web players in Chrome or Safari
+  tabs. It doesn't stop Music from launching, and its last release was in 2017.
+
 ## How it works
 
 Two independent mechanisms, because Music.app can be launched through paths
@@ -33,9 +49,12 @@ that need different fixes:
 
 ## Status
 
-Menu-bar toggle, the two interception mechanisms above, and a configurable
-single replacement app/URL (via `defaults write dev.drumandbytes.musicrouter
-replacement <path-or-url>`, same convention as noTunes).
+Working: the two interception mechanisms above, a replacement app (a
+shortlist, any local app, a custom URL, or none), Launch at Login, a Settings
+window, permission reset and opt-in debug logging (see "Menu bar" below). The
+replacement can also be set from the command line with `defaults write
+dev.drumandbytes.musicrouter replacement <path-or-url>`, same convention as
+noTunes.
 
 A media key press first checks whether something is *already* the system's
 Now Playing session — native app or a browser tab, anything using the Media
