@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusBar = statusBar
     }
 
-    // else the media-control child outlives us
+    // else the adapter child outlives us
     func applicationWillTerminate(_ notification: Notification) {
         nowPlayingObserver.stop()
     }
