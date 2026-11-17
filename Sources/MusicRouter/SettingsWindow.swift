@@ -15,6 +15,8 @@ final class SettingsModel: ObservableObject {
     @Published var resumeLastPlayer = Config.resumeLastPlayer
     @Published var targetApp = Config.targetApp
     @Published var cycleShortcut = Config.cycleShortcut
+    @Published var cycleBinding = Config.cycleShortcutBinding
+    @Published var shortcutError: String?
     @Published var inputMonitoring = CGPreflightListenEventAccess()
     @Published var accessibility = AXIsProcessTrusted()
     @Published var nowPlayingHealth = NowPlayingObserver.Health.starting
@@ -42,6 +44,7 @@ final class SettingsModel: ObservableObject {
         resumeLastPlayer = Config.resumeLastPlayer
         targetApp = Config.targetApp
         cycleShortcut = Config.cycleShortcut
+        cycleBinding = Config.cycleShortcutBinding
         inputMonitoring = CGPreflightListenEventAccess()
         accessibility = AXIsProcessTrusted()
     }
@@ -54,7 +57,9 @@ struct SettingsActions {
     var chooseURL: () -> Void
     var resetPermissions: () -> Void
     var nowPlayingHealth: () -> NowPlayingObserver.Health
-    var cycleShortcutChanged: () -> Void
+    /// Re-registers the hotkey; `false` if that failed.
+    var cycleShortcutChanged: () -> Bool
+    var shortcutRecording: (Bool) -> Void
 }
 
 struct SettingsView: View {
@@ -68,6 +73,11 @@ struct SettingsView: View {
         var ids = TargetApps.installed().map(\.bundleID)
         if let current = model.targetApp, !ids.contains(current) { ids.append(current) }
         return ids
+    }
+
+    private func applyShortcut() {
+        let ok = actions.cycleShortcutChanged()
+        model.shortcutError = ok ? nil : "That shortcut is taken by another app. Pick a different one."
     }
 
     static func targetLabel(_ id: String) -> String {
@@ -112,10 +122,39 @@ struct SettingsView: View {
                     Text(Self.targetLabel(id)).tag(id)
                 }
             }
-            Toggle("Cycle target with ⌃⌥⌘M", isOn: Binding(
+            Toggle("Cycle target with a shortcut", isOn: Binding(
                 get: { model.cycleShortcut },
-                set: { Config.cycleShortcut = $0; model.cycleShortcut = $0; actions.cycleShortcutChanged() }
+                set: {
+                    Config.cycleShortcut = $0
+                    model.cycleShortcut = $0
+                    applyShortcut()
+                }
             ))
+            if model.cycleShortcut {
+                LabeledContent("Shortcut") {
+                    HStack {
+                        ShortcutRecorder(
+                            shortcut: model.cycleBinding,
+                            onCapture: {
+                                Config.cycleShortcutBinding = $0
+                                model.cycleBinding = Config.cycleShortcutBinding
+                                applyShortcut()
+                            },
+                            onRecordingChange: { actions.shortcutRecording($0) }
+                        )
+                        .frame(width: 130)
+                        Button("Reset") {
+                            Config.cycleShortcutBinding = .defaultCycle
+                            model.cycleBinding = .defaultCycle
+                            applyShortcut()
+                        }
+                        .disabled(model.cycleBinding == .defaultCycle)
+                    }
+                }
+                if let error = model.shortcutError {
+                    Text(error).font(.footnote).foregroundStyle(.red)
+                }
+            }
             Toggle("Resume last player", isOn: Binding(
                 get: { model.resumeLastPlayer },
                 set: { Config.resumeLastPlayer = $0; model.resumeLastPlayer = $0 }

@@ -31,7 +31,8 @@ macOS, with the media keys behaving too. I use Music Router myself every day.
   (Spotify, TIDAL, VLC, a web player, any app), actually playing, not just
   opened.
 - **Pin a media-key target** among several players (Spotify, VLC, Vox,
-  Swinsian) from the menu or with a ⌃⌥⌘M shortcut.
+  Swinsian) from the menu or with a remappable global shortcut (⌃⌥⌘M by
+  default).
 - **Keeps working when Now Playing detection breaks**: it falls back to a
   CoreAudio check, restarts the adapter and shows the state in Settings.
 - **No extra install for Now Playing**: the MediaRemote adapter is bundled,
@@ -107,10 +108,13 @@ running you can pin one: **Media Key Target** in the menu (or Settings) picks
 Spotify, VLC, Vox or Swinsian (whichever are installed). While one is picked,
 Music Router swallows play/next/previous and sends them to that app through
 AppleScript, whatever owns Now Playing, launching it first if it isn't
-running. The optional shortcut **⌃⌥⌘M** (off by default, a checkbox in the
-same submenu) cycles Automatic → each running player → Automatic and flashes
-the name next to the menu bar icon. It uses a plain global hotkey, so it needs
-no extra permission.
+running. The optional global shortcut (off by default, a checkbox in the same
+submenu or in Settings) cycles Automatic → each running player → Automatic and
+flashes the name next to the menu bar icon. It defaults to **⌃⌥⌘M**; in
+Settings, click the shortcut button and press a new combination to remap it
+(it needs ⌘, ⌥ or ⌃; Esc cancels, **Reset** restores the default). If another
+app already owns the combination, Settings says so. It uses a plain global
+hotkey, so it needs no extra permission.
 
 Limits: MediaRemote only reports and controls one Now Playing app, so this
 works for scriptable native apps only, which is why the list is a short
@@ -222,7 +226,7 @@ Click the note icon for:
 - **Enabled** — toggle both interception mechanisms on/off. Remembered
   across relaunches.
 - **Media Key Target** — pin the player that gets the media keys (or
-  Automatic), and enable the ⌃⌥⌘M cycle shortcut; see above.
+  Automatic), and enable the cycle shortcut (remappable in Settings); see above.
 - **Resume Last Player** — with nothing playing, the play key resumes the
   last app that played, if still running and scriptable; see above.
 - **Replacement App** — a curated shortlist (Spotify, TIDAL, VLC, YouTube
@@ -252,7 +256,8 @@ Everything in the menu is a plain `defaults` key in
 | `replacement` | string | App path or URL opened when nothing plays; delete for block-only |
 | `resumeLastPlayer` | bool | Resume the last playing app first (default `true`) |
 | `targetApp` | string | Bundle ID pinned as the media-key target; delete for automatic |
-| `cycleShortcut` | bool | ⌃⌥⌘M cycles the target (default `false`) |
+| `cycleShortcut` | bool | The shortcut cycles the target (default `false`) |
+| `cycleShortcutKeyCode`, `cycleShortcutModifiers`, `cycleShortcutKey` | int, int, string | Custom shortcut (Carbon key code and modifier mask, display label); delete all three for the ⌃⌥⌘M default |
 | `enabled` | bool | Interception on/off (default `true`) |
 | `debugLogging` | bool | Write `~/Library/Logs/MusicRouter.log` |
 

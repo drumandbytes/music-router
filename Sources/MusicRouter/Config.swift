@@ -67,7 +67,32 @@ enum Config {
         }
     }
 
-    /// ⌃⌥⌘M cycles `targetApp` through the running players. Off by default.
+    /// Global shortcut that cycles `targetApp`. Defaults to ⌃⌥⌘M; an invalid
+    /// or partial stored value falls back to the default.
+    static var cycleShortcutBinding: Shortcut {
+        get {
+            let d = UserDefaults.standard
+            guard let code = d.object(forKey: "cycleShortcutKeyCode") as? Int,
+                  let mods = d.object(forKey: "cycleShortcutModifiers") as? Int,
+                  let key = d.string(forKey: "cycleShortcutKey"),
+                  code >= 0, mods >= 0
+            else { return .defaultCycle }
+            let stored = Shortcut(keyCode: UInt32(code), modifiers: UInt32(mods), key: key)
+            return stored.isValid ? stored : .defaultCycle
+        }
+        set {
+            let d = UserDefaults.standard
+            if newValue == .defaultCycle || !newValue.isValid {
+                ["cycleShortcutKeyCode", "cycleShortcutModifiers", "cycleShortcutKey"].forEach(d.removeObject(forKey:))
+            } else {
+                d.set(Int(newValue.keyCode), forKey: "cycleShortcutKeyCode")
+                d.set(Int(newValue.modifiers), forKey: "cycleShortcutModifiers")
+                d.set(newValue.key, forKey: "cycleShortcutKey")
+            }
+        }
+    }
+
+    /// The shortcut cycles `targetApp` through the running players. Off by default.
     static var cycleShortcut: Bool {
         get { UserDefaults.standard.bool(forKey: "cycleShortcut") }
         set { UserDefaults.standard.set(newValue, forKey: "cycleShortcut") }
