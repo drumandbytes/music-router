@@ -9,6 +9,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private var isEnabled = Config.isEnabled
     private var replacementItem: NSMenuItem?
     private var permissionsItem: NSMenuItem?
+    private var inputMonitoringItem: NSMenuItem?
+    private var accessibilityItem: NSMenuItem?
     private var toggleItem: NSMenuItem?
     private var resumeItem: NSMenuItem?
     private lazy var settings = SettingsWindowController(actions: SettingsActions(
@@ -136,9 +138,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(revealLogItem)
 
         // Surfaces the easy-to-half-grant dual permission instead of silently
-        // dead keys. Resetting when already granted is harmless.
-        let permissionsItem = NSMenuItem(title: "", action: #selector(resetPermissions), keyEquivalent: "")
+        // dead keys; each row shows its grant and opens its System Settings pane.
+        menu.addItem(.separator())
+
+        let inputMonitoringItem = NSMenuItem(title: "Input Monitoring", action: #selector(openInputMonitoringPane), keyEquivalent: "")
+        inputMonitoringItem.target = self
+        menu.addItem(inputMonitoringItem)
+        self.inputMonitoringItem = inputMonitoringItem
+
+        // macOS 27 renamed Accessibility to "Device Control and Data Access"
+        let accessibilityItem = NSMenuItem(title: "Accessibility / Device Control", action: #selector(openAccessibilityPane), keyEquivalent: "")
+        accessibilityItem.target = self
+        menu.addItem(accessibilityItem)
+        self.accessibilityItem = accessibilityItem
+
+        // Resetting when already granted is harmless.
+        let permissionsItem = NSMenuItem(title: "Reset Permissions…", action: #selector(resetPermissions), keyEquivalent: "")
         permissionsItem.target = self
+        permissionsItem.image = Self.symbol("lock.rotation")
         menu.addItem(permissionsItem)
         self.permissionsItem = permissionsItem
 
@@ -197,7 +214,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         for item in menu.items {
             if let name = icons[item.title] { item.image = Self.symbol(name) }
         }
-        permissionsItem?.image = Self.symbol("lock.rotation")
     }
 
     private static func appIcon(path: String) -> NSImage {
@@ -213,10 +229,29 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         replacementItem?.submenu = buildReplacementMenu()
         targetItem?.submenu = buildTargetMenu()
 
-        let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
-        let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
-        // macOS 27 renamed Accessibility to "Device Control and Data Access"; show both
-        permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility/Device Control \(accessibility))"
+        inputMonitoringItem?.image = Self.statusSymbol(granted: CGPreflightListenEventAccess())
+        accessibilityItem?.image = Self.statusSymbol(granted: AXIsProcessTrusted())
+    }
+
+    private static func statusSymbol(granted: Bool) -> NSImage? {
+        let name = granted ? "checkmark.circle.fill" : "xmark.circle.fill"
+        let color: NSColor = granted ? .systemGreen : .systemRed
+        return NSImage(systemSymbolName: name, accessibilityDescription: granted ? "Granted" : "Not granted")?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular).applying(.init(paletteColors: [color])))
+    }
+
+    @objc private func openInputMonitoringPane() {
+        openPrivacyPane("Privacy_ListenEvent")
+    }
+
+    @objc private func openAccessibilityPane() {
+        openPrivacyPane("Privacy_Accessibility")
+    }
+
+    private func openPrivacyPane(_ anchor: String) {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func buildTargetMenu() -> NSMenu {

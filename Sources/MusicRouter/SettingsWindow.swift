@@ -18,6 +18,7 @@ final class SettingsModel: ObservableObject {
     @Published var cycleBinding = Config.cycleShortcutBinding
     @Published var shortcutError: String?
     @Published var showTargetToast = Config.showTargetToast
+    @Published var iconStyle = SystemIconStyle.current
     @Published var inputMonitoring = CGPreflightListenEventAccess()
     @Published var accessibility = AXIsProcessTrusted()
     @Published var nowPlayingHealth = NowPlayingObserver.Health.starting
@@ -47,6 +48,7 @@ final class SettingsModel: ObservableObject {
         cycleShortcut = Config.cycleShortcut
         cycleBinding = Config.cycleShortcutBinding
         showTargetToast = Config.showTargetToast
+        iconStyle = SystemIconStyle.current
         inputMonitoring = CGPreflightListenEventAccess()
         accessibility = AXIsProcessTrusted()
     }
@@ -242,6 +244,7 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
+        .environment(\.systemIconStyle, model.iconStyle)
         .windowGlass()
     }
 
@@ -295,11 +298,15 @@ struct SettingsView: View {
     }
 }
 
-/// Rounded, tinted icon tile + title, in the style of System Settings rows.
+/// Rounded icon tile + title, in the style of System Settings rows. The tile
+/// follows the system icon style: colour, dark, clear glass or tinted.
 private struct Tile: View {
     let title: String
     let symbol: String
     let color: Color
+
+    @Environment(\.systemIconStyle) private var style
+    @Environment(\.colorScheme) private var colorScheme
 
     init(_ title: String, _ symbol: String, _ color: Color) {
         self.title = title
@@ -311,12 +318,44 @@ private struct Tile: View {
         Label {
             Text(title)
         } icon: {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 24, height: 24)
-                .background(color.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            glyph
         }
+    }
+
+    private var dark: Bool { style.isDark(colorScheme: colorScheme) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+
+    /// Tinted style uses one colour (the accent) for every tile.
+    private var tint: Color { style.kind == .tinted ? .accentColor : color }
+
+    private var glyph: some View {
+        let base = Image(systemName: symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .frame(width: 24, height: 24)
+        return Group {
+            switch (style.kind, dark) {
+            case (.regular, false), (.tinted, false):
+                base.foregroundStyle(.white).background(tint.gradient, in: shape)
+            case (.regular, true), (.tinted, true):
+                base.foregroundStyle(tint).background(Color(white: 0.16).gradient, in: shape)
+            case (.clear, _):
+                clearTile(base)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func clearTile(_ base: some View) -> some View {
+        let glyphColor: Color = dark ? .white : color
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            base.foregroundStyle(glyphColor).glassEffect(.regular.tint(color.opacity(0.18)), in: shape)
+        } else {
+            base.foregroundStyle(glyphColor).background(.ultraThinMaterial, in: shape)
+        }
+        #else
+        base.foregroundStyle(glyphColor).background(.ultraThinMaterial, in: shape)
+        #endif
     }
 }
 
