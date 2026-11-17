@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0](https://github.com/drumandbytes/music-router/compare/v0.6.2...v1.0.0) (2026-11-17)
+
+
+### Features
+
+* **cli:** bundle musicrouter-media wrapper around the adapter ([#41](https://github.com/drumandbytes/music-router/issues/41)) ([d6828e4](https://github.com/drumandbytes/music-router/commit/d6828e4d6ca3e765adc21baa7efd993f1a83659d))
+* **now-playing:** fall back to CoreAudio when the adapter fails ([#38](https://github.com/drumandbytes/music-router/issues/38)) ([b5f8927](https://github.com/drumandbytes/music-router/commit/b5f892773fa2cf40ed6648d4741b1d2f08f05798))
+* **now-playing:** vendor mediaremote-adapter instead of media-control CLI ([#37](https://github.com/drumandbytes/music-router/issues/37)) ([5a64856](https://github.com/drumandbytes/music-router/commit/5a64856a8b1e025b92d6393c8a92e2d0652296dd))
+* **resume:** resume the last playing app instead of launching the replacement ([#39](https://github.com/drumandbytes/music-router/issues/39)) ([85d959c](https://github.com/drumandbytes/music-router/commit/85d959c09f6325cde536a49d33175e418a33835f))
+* **target:** pick which app gets the media keys ([#40](https://github.com/drumandbytes/music-router/issues/40)) ([2a479ff](https://github.com/drumandbytes/music-router/commit/2a479ff8efa834825c123e57092b1296c7699901))
+
+
+### Documentation
+
+* **readme:** cover bundled adapter, fallback, resume, target app and CLI ([#43](https://github.com/drumandbytes/music-router/issues/43)) ([7d09ee0](https://github.com/drumandbytes/music-router/commit/7d09ee0a154f2997bcbda0748f2cbce8534fad06))
+
 ## [0.6.2](https://github.com/drumandbytes/music-router/compare/v0.6.1...v0.6.2) (2026-10-25)
 
 
