@@ -47,6 +47,13 @@ enum Config {
         set { UserDefaults.standard.set(newValue, forKey: "enabled") }
     }
 
+    /// When nothing is playing, resume the app that played last (if still
+    /// running and scriptable) instead of launching the replacement. Defaults to true.
+    static var resumeLastPlayer: Bool {
+        get { UserDefaults.standard.object(forKey: "resumeLastPlayer") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "resumeLastPlayer") }
+    }
+
     /// Shortcuts for the "Replacement App" menu. Native apps only if installed.
     static let predefinedApps: [(name: String, target: String)] = [
         (name: "Spotify", target: "/Applications/Spotify.app"),

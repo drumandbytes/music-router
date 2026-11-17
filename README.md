@@ -81,6 +81,26 @@ there's no separate install. It runs once as a long-lived background process
 in memory, so a media key press only reads an already-current flag — no
 subprocess spawned on the key-press path.
 
+### Resuming the last player
+
+The adapter's stream also says *which* app is playing. Music Router remembers
+the last bundle ID that was actively playing. When nothing owns Now Playing
+and you press a media key, it sends the key (AppleScript `playpause` / `next
+track` / `previous track`) to that app if it is still running and
+scriptable, instead of launching the fixed replacement. Otherwise (the app
+quit, isn't scriptable, or nothing has played since launch) it falls back to
+the replacement as before. On by default; **Resume Last Player** in the menu
+and Settings turns it off (`defaults write dev.drumandbytes.musicrouter
+resumeLastPlayer -bool false`).
+
+Limits: the memory is per launch, not saved. A paused player usually keeps
+Now Playing (the key reaches it through macOS), so this mostly applies after
+an app stops or drops its session. Browser tabs report the browser or a
+WebKit/Chromium helper process, which doesn't understand those AppleScript
+verbs, so they fall back to the replacement. The first send to an app
+triggers macOS's Automation permission prompt for it. Music/iTunes is never
+a target.
+
 ### When detection fails
 
 If the adapter can't start or stops answering (a macOS update broke
@@ -137,6 +157,8 @@ Click the note icon for:
 
 - **Enabled** — toggle both interception mechanisms on/off. Remembered
   across relaunches.
+- **Resume Last Player** — with nothing playing, the play key resumes the
+  last app that played, if still running and scriptable; see above.
 - **Replacement App** — a curated shortlist (Spotify, TIDAL, VLC, YouTube
   Music, Deezer, SoundCloud — native apps only show if actually installed),
   **Choose App…** for any other local app, **Custom URL…** for any other web
