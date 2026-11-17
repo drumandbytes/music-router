@@ -128,10 +128,9 @@ on it and goes further:
   scripts.
 
 The trade-off: intercepting keys needs **Input Monitoring** and
-**Accessibility** permission, which a simpler quit-on-launch app doesn't.
-Controlling web players in browser tabs is a different job, done by tools such as
-[BeardedSpice](https://github.com/beardedspice/beardedspice); Music Router
-leaves that to macOS and routes the keys to whichever tab owns Now Playing.
+**Accessibility** permission, which a simpler quit-on-launch app doesn't. Music
+Router doesn't control browser tabs itself; it leaves that to macOS and routes
+the keys to whichever tab owns Now Playing.
 
 ## Limits
 
