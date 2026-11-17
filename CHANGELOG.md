@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/drumandbytes/music-router/compare/v1.1.1...v1.1.2) (2026-11-17)
+
+
+### Documentation
+
+* **readme:** match the slimmed menu ([#53](https://github.com/drumandbytes/music-router/issues/53)) ([fcfb95c](https://github.com/drumandbytes/music-router/commit/fcfb95c04d146d042196c5b9432de8d696701d4c))
+
 ## [1.1.1](https://github.com/drumandbytes/music-router/compare/v1.1.0...v1.1.1) (2026-11-17)
 
 
