@@ -298,15 +298,11 @@ struct SettingsView: View {
     }
 }
 
-/// Rounded icon tile + title, in the style of System Settings rows. The tile
-/// follows the system icon style: colour, dark, clear glass or tinted.
+/// Row label: an `IconTile` plus the title, in the style of System Settings.
 private struct Tile: View {
     let title: String
     let symbol: String
     let color: Color
-
-    @Environment(\.systemIconStyle) private var style
-    @Environment(\.colorScheme) private var colorScheme
 
     init(_ title: String, _ symbol: String, _ color: Color) {
         self.title = title
@@ -318,55 +314,7 @@ private struct Tile: View {
         Label {
             Text(title)
         } icon: {
-            glyph
-        }
-    }
-
-    private var dark: Bool { style.isDark(colorScheme: colorScheme) }
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
-
-    /// Tinted style uses one colour (the accent) for every tile.
-    private var tint: Color { style.kind == .tinted ? .accentColor : color }
-
-    private var glyph: some View {
-        let base = Image(systemName: symbol)
-            .font(.system(size: 12, weight: .semibold))
-            .frame(width: 24, height: 24)
-        return Group {
-            switch (style.kind, dark) {
-            case (.regular, false), (.tinted, false):
-                base.foregroundStyle(.white).background(tint.gradient, in: shape)
-            case (.regular, true), (.tinted, true):
-                base.foregroundStyle(tint).background(Color(white: 0.16).gradient, in: shape)
-            case (.clear, _):
-                clearTile(base)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func clearTile(_ base: some View) -> some View {
-        let glyphColor: Color = dark ? .white : color
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            base.foregroundStyle(glyphColor).glassEffect(.regular.tint(color.opacity(0.18)), in: shape)
-        } else {
-            base.foregroundStyle(glyphColor).background(.ultraThinMaterial, in: shape)
-        }
-        #else
-        base.foregroundStyle(glyphColor).background(.ultraThinMaterial, in: shape)
-        #endif
-    }
-}
-
-private extension View {
-    /// Glass/material window background where the OS supports it.
-    @ViewBuilder
-    func windowGlass() -> some View {
-        if #available(macOS 15.0, *) {
-            containerBackground(.regularMaterial, for: .window)
-        } else {
-            self
+            IconTile(symbol: symbol, color: color, size: 24)
         }
     }
 }
@@ -404,9 +352,8 @@ final class SettingsWindowController: NSWindowController {
         let hosting = NSHostingController(rootView: SettingsView(model: model, actions: actions))
         let window = NSWindow(contentViewController: hosting)
         window.title = "Music Router Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.applyGlassChrome()
         window.isReleasedWhenClosed = false
         super.init(window: window)
     }

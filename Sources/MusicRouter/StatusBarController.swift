@@ -443,43 +443,31 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func chooseCustomURL() {
-        let alert = NSAlert()
-        alert.messageText = "Custom Replacement URL"
-        alert.informativeText = "Opened instead of Music.app, e.g. a web player not in the list above."
-        alert.addButton(withTitle: "Set")
-        alert.addButton(withTitle: "Cancel")
-
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
-        field.placeholderString = "https://example.com/player"
-        if let current = Config.replacement, Config.isWebURL(current) {
-            field.stringValue = current
-        }
-        alert.accessoryView = field
-        alert.window.initialFirstResponder = field
-
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard Config.isWebURL(text) else {
-            let error = NSAlert()
-            error.alertStyle = .warning
-            error.messageText = "Not a Web URL"
-            error.informativeText = "“\(text)” needs to start with http:// or https://. Use Choose App… for a local app."
-            error.runModal()
-            return
-        }
-        Config.replacement = text
+        let current = Config.replacement.flatMap { Config.isWebURL($0) ? $0 : nil } ?? ""
+        let result = Dialog.run(DialogSpec(
+            symbol: "link",
+            color: .blue,
+            title: "Custom Replacement URL",
+            message: "Opened instead of Music.app, e.g. a web player not in the list.",
+            primary: "Set",
+            field: .init(placeholder: "https://example.com/player", initial: current, validate: Config.urlError)
+        ))
+        guard result.accepted else { return }
+        Config.replacement = result.text
     }
 
     /// Clears both TCC grants (they go stale when the signing identity changes)
     /// and `hasRequestedPermissions`, then relaunches so the OS re-evaluates.
     @objc private func resetPermissions() {
-        let confirm = NSAlert()
-        confirm.messageText = "Reset Permissions?"
-        confirm.informativeText = "Clears the Input Monitoring and Accessibility/Device Control grants for Music Router and relaunches it so you can grant them again."
-        confirm.addButton(withTitle: "Reset")
-        confirm.addButton(withTitle: "Cancel")
-        NSApp.activate(ignoringOtherApps: true)
-        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+        let confirmed = Dialog.run(DialogSpec(
+            symbol: "lock.rotation",
+            color: .red,
+            title: "Reset Permissions?",
+            message: "Clears the Input Monitoring and Accessibility / Device Control grants for Music Router and relaunches it so you can grant them again.",
+            primary: "Reset",
+            destructive: true
+        )).accepted
+        guard confirmed else { return }
 
         for service in ["ListenEvent", "Accessibility"] {
             let process = Process()
@@ -499,12 +487,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showAbout() {
-        // accessory apps don't auto-activate; else the panel opens behind
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(nil)
+        AboutWindowController.shared.show()
     }
 
     @objc private func showHelp() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/drumandbytes/music-router")!)
+        NSWorkspace.shared.open(Links.help)
     }
 }
