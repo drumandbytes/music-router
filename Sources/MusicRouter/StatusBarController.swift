@@ -1,18 +1,15 @@
 import AppKit
 import ApplicationServices
 import CoreGraphics
-import ServiceManagement
 import UniformTypeIdentifiers
 
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private var isEnabled = Config.isEnabled
     private var replacementItem: NSMenuItem?
-    private var permissionsItem: NSMenuItem?
     private var inputMonitoringItem: NSMenuItem?
     private var accessibilityItem: NSMenuItem?
     private var toggleItem: NSMenuItem?
-    private var resumeItem: NSMenuItem?
     private lazy var settings = SettingsWindowController(actions: SettingsActions(
         setEnabled: { [weak self] in self?.setEnabled($0) },
         setIconHidden: { [weak self] in self?.setIconHidden($0) },
@@ -85,24 +82,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(targetItem)
         self.targetItem = targetItem
 
-        let resumeItem = NSMenuItem(
-            title: "Resume Last Player",
-            action: #selector(toggleResumeLastPlayer),
-            keyEquivalent: ""
-        )
-        resumeItem.target = self
-        resumeItem.state = Config.resumeLastPlayer ? .on : .off
-        menu.addItem(resumeItem)
-        self.resumeItem = resumeItem
-
-        let loginItem = NSMenuItem(
-            title: "Launch at Login",
-            action: #selector(toggleLaunchAtLogin),
-            keyEquivalent: ""
-        )
-        loginItem.target = self
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(loginItem)
+        menu.addItem(.separator())
 
         let settingsItem = NSMenuItem(
             title: "Settings…",
@@ -111,31 +91,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         settingsItem.target = self
         menu.addItem(settingsItem)
-
-        let hideItem = NSMenuItem(
-            title: "Hide Menu Bar Icon",
-            action: #selector(hideMenuBarIcon),
-            keyEquivalent: ""
-        )
-        hideItem.target = self
-        menu.addItem(hideItem)
-
-        let debugItem = NSMenuItem(
-            title: "Debug Logging",
-            action: #selector(toggleDebugLogging),
-            keyEquivalent: ""
-        )
-        debugItem.target = self
-        debugItem.state = Config.debugLogging ? .on : .off
-        menu.addItem(debugItem)
-
-        let revealLogItem = NSMenuItem(
-            title: "Reveal Log in Finder",
-            action: #selector(revealLog),
-            keyEquivalent: ""
-        )
-        revealLogItem.target = self
-        menu.addItem(revealLogItem)
 
         // Surfaces the easy-to-half-grant dual permission instead of silently
         // dead keys; each row shows its grant and opens its System Settings pane.
@@ -151,13 +106,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         accessibilityItem.target = self
         menu.addItem(accessibilityItem)
         self.accessibilityItem = accessibilityItem
-
-        // Resetting when already granted is harmless.
-        let permissionsItem = NSMenuItem(title: "Reset Permissions…", action: #selector(resetPermissions), keyEquivalent: "")
-        permissionsItem.target = self
-        permissionsItem.setIcon(Self.symbol("lock.rotation"))
-        menu.addItem(permissionsItem)
-        self.permissionsItem = permissionsItem
 
         menu.addItem(.separator())
 
@@ -200,12 +148,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             "Enabled": "power",
             "Media Key Target": "scope",
             "Replacement App": "arrow.triangle.turn.up.right.circle",
-            "Resume Last Player": "play.circle",
-            "Launch at Login": "sunrise",
             "Settings…": "gearshape",
-            "Hide Menu Bar Icon": "eye.slash",
-            "Debug Logging": "ladybug",
-            "Reveal Log in Finder": "doc.text.magnifyingglass",
             "About Music Router": "info.circle",
             "Help": "questionmark.circle",
             "Quit Music Router": "xmark.circle",
@@ -215,16 +158,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    private static func appIcon(path: String) -> NSImage {
-        let icon = NSWorkspace.shared.icon(forFile: path)
-        icon.size = NSSize(width: 16, height: 16)
-        return icon
-    }
-
     /// Refresh on open so grants and installs made while running show up.
     func menuWillOpen(_ menu: NSMenu) {
         toggleItem?.state = isEnabled ? .on : .off
-        resumeItem?.state = Config.resumeLastPlayer ? .on : .off
         replacementItem?.submenu = buildReplacementMenu()
         targetItem?.submenu = buildTargetMenu()
 
@@ -273,37 +209,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let item = NSMenuItem(title: title, action: #selector(selectTarget(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = id
-            if let url = TargetApps.appURL(for: id) { item.setIcon(Self.appIcon(path: url.path)) }
+            item.setIcon(TargetApps.icon(bundleID: id))
             item.state = current == id ? .on : .off
             submenu.addItem(item)
         }
 
-        submenu.addItem(.separator())
-        let shortcut = NSMenuItem(title: "Cycle with \(Config.cycleShortcutBinding.display)", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
-        shortcut.target = self
-        shortcut.setIcon(Self.symbol("keyboard"))
-        shortcut.state = Config.cycleShortcut ? .on : .off
-        submenu.addItem(shortcut)
-
-        let toast = NSMenuItem(title: "Show Message on Change", action: #selector(toggleTargetToast(_:)), keyEquivalent: "")
-        toast.target = self
-        toast.setIcon(Self.symbol("bubble.left"))
-        toast.state = Config.showTargetToast ? .on : .off
-        submenu.addItem(toast)
         return submenu
     }
 
     @objc private func selectTarget(_ sender: NSMenuItem) {
         Config.targetApp = sender.representedObject as? String
-    }
-
-    @objc private func toggleTargetToast(_ sender: NSMenuItem) {
-        Config.showTargetToast.toggle()
-    }
-
-    @objc private func toggleCycleShortcut(_ sender: NSMenuItem) {
-        Config.cycleShortcut.toggle()
-        _ = onCycleShortcutChanged?()
     }
 
     /// Brief status-bar label so a shortcut change is visible without opening the menu.
@@ -341,7 +256,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
             item.target = self
             item.representedObject = app.target
-            item.setIcon(Config.isWebURL(app.target) ? Self.symbol("globe") : Self.appIcon(path: app.target))
+            item.setIcon(Config.isWebURL(app.target) ? Self.symbol("globe") : TargetApps.icon(path: app.target))
             item.state = current == app.target ? .on : .off
             submenu.addItem(item)
         }
@@ -394,30 +309,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         toggleItem?.state = enabled ? .on : .off
         updateIcon()
         onToggle?(enabled)
-    }
-
-    @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
-        LoginItem.toggle()
-        sender.state = SMAppService.mainApp.status == .enabled ? .on : .off
-    }
-
-    @objc private func toggleResumeLastPlayer(_ sender: NSMenuItem) {
-        Config.resumeLastPlayer.toggle()
-        sender.state = Config.resumeLastPlayer ? .on : .off
-    }
-
-    @objc private func toggleDebugLogging(_ sender: NSMenuItem) {
-        Config.debugLogging.toggle()
-        sender.state = Config.debugLogging ? .on : .off
-        DebugLog.shared.log("debug logging on")
-    }
-
-    @objc private func revealLog() {
-        DebugLog.shared.reveal()
-    }
-
-    @objc private func hideMenuBarIcon() {
-        setIconHidden(true)
     }
 
     @objc private func setBlockOnly() {

@@ -322,13 +322,4 @@ final class NowPlayingObserver {
         return State(bundleID: line.payload.bundleIdentifier, playing: line.payload.playing ?? false)
     }
 
-    /// Outer `nil` = unparseable line; inner `nil` = parsed, nothing owns Now Playing.
-    static func parse(jsonLine: Data) -> String?? {
-        guard let state = parseState(jsonLine: jsonLine) else { return nil }
-        return .some(state.bundleID)
-    }
-
-    static func hasNowPlayingApp(jsonLine: Data) -> Bool? {
-        parse(jsonLine: jsonLine).map { $0 != nil }
-    }
 }

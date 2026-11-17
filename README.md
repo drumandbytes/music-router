@@ -30,9 +30,8 @@ macOS, with the media keys behaving too. I use Music Router myself every day.
   played (if still running and scriptable), otherwise your replacement app
   (Spotify, TIDAL, VLC, a web player, any app), actually playing, not just
   opened.
-- **Pin a media-key target** among several players (Spotify, VLC, Vox,
-  Swinsian) from the menu or with a remappable global shortcut (⌃⌥⌘M by
-  default).
+- **Pin a media-key target** among several players (Spotify, VLC) from the
+  menu or with a remappable global shortcut (⌃⌥⌘M by default).
 - **Keeps working when Now Playing detection breaks**: it falls back to a
   CoreAudio check, restarts the adapter and shows the state in Settings.
 - **No extra install for Now Playing**: the MediaRemote adapter is bundled,
@@ -105,7 +104,7 @@ subprocess spawned on the key-press path.
 
 By default Now Playing decides who gets the keys. With several players
 running you can pin one: **Media Key Target** in the menu (or Settings) picks
-Spotify, VLC, Vox or Swinsian (whichever are installed). While one is picked,
+Spotify or VLC (whichever are installed; TIDAL is launch-only). While one is picked,
 Music Router swallows play/next/previous and sends them to that app through
 AppleScript, whatever owns Now Playing, launching it first if it isn't
 running. The optional global shortcut (off by default, a checkbox in the same
