@@ -28,7 +28,6 @@ struct AboutView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 8) {
-                row("questionmark.circle", "Help & Troubleshooting", Links.help, .blue)
                 row("chevron.left.forwardslash.chevron.right", "Source on GitHub", Links.repo, .gray)
                 row("square.grid.2x2", "Part of Drumandbytes", Links.projects, .orange)
             }
