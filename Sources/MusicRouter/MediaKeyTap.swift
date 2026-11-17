@@ -8,7 +8,7 @@ import CoreGraphics
 ///
 /// Needs BOTH Input Monitoring and Accessibility: `CGEventTapCreate` returns
 /// nil with only the first. Re-signing with another identity, or running the
-/// raw binary, can silently drop either grant (see README).
+/// raw binary, can silently drop either grant (see docs/development.md).
 final class MediaKeyTap {
     /// Returns whether to swallow the event; `false` passes it through to the Now Playing owner.
     typealias Handler = (MediaKey, Bool) -> Bool

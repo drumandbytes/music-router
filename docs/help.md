@@ -1,7 +1,7 @@
 # Music Router help
 
-Quick answers for the usual problems. For how it works, see the
-[README](../README.md).
+Quick answers for the usual problems. For how it works, see
+[How it works](how-it-works.md); for every setting, [Configuration](configuration.md).
 
 ## Media keys do nothing
 
@@ -63,14 +63,21 @@ such as a call, counts as playing. It retries the adapter automatically.
 `musicrouter-media stream|get|toggle|play|pause|next|previous` reads and
 controls Now Playing (installed with Homebrew, otherwise in
 `MusicRouter.app/Contents/Resources`). Every setting is a `defaults` key; the
-table is in the README.
+table is in [Configuration](configuration.md#defaults-keys).
 
 ## Report a bug
 
-Turn on **Debug Logging**, reproduce the problem, **Reveal Log in Finder** and
-attach `~/Library/Logs/MusicRouter.log` to an
-[issue](https://github.com/drumandbytes/music-router/issues). The log holds only
-key names, bundle IDs and state changes, never titles, artists or other keys.
+Turn on **Debug logging** in Settings (or `defaults write
+dev.drumandbytes.musicrouter debugLogging -bool true`), reproduce the problem,
+then **Reveal Log in Finder** and attach `~/Library/Logs/MusicRouter.log` to an
+[issue](https://github.com/drumandbytes/music-router/issues).
+
+The log records only: which of the three media keys was pressed (play/pause,
+next, previous) and whether it was swallowed or passed through, the bundle ID of
+whichever app owns Now Playing and when that changes, and adapter/event-tap
+start and stop. Never other keys, track titles, artists, or window contents. It
+rotates at 2 MB, keeping one older file (`MusicRouter.log.1`), and costs nothing
+while off.
 
 ## Remove it
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Swaps third_party/mediaremote-adapter for upstream tag $1 (no test client) and
-# rewrites VERSION and the README's version. Doesn't commit.
+# rewrites VERSION and the version named in the docs. Doesn't commit.
 # Usage: scripts/update-adapter.sh <tag>
 set -euo pipefail
 
@@ -34,7 +34,9 @@ license: BSD-3-Clause (see LICENSE)
 local changes: none; src/test (test client) omitted
 VERSION
 
-# the README names the pinned version in two places
-sed -i.bak "s/$OLD/$TAG/g" README.md && rm -f README.md.bak
+# the docs name the pinned version (how-it-works, development)
+for f in docs/how-it-works.md docs/development.md; do
+  sed -i.bak "s/$OLD/$TAG/g" "$f" && rm -f "$f.bak"
+done
 
 echo "updated $OLD -> $TAG ($COMMIT)"
