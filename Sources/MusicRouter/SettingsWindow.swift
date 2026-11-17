@@ -90,122 +90,146 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Enabled", isOn: Binding(
+                Toggle(isOn: Binding(
                     get: { model.isEnabled },
                     set: { model.isEnabled = $0; actions.setEnabled($0) }
-                ))
+                )) { Tile("Enabled", "power", .green) }
 
-                Picker("Replacement app", selection: Binding(
+                Picker(selection: Binding(
                     get: { model.replacement ?? Self.blockOnly },
                     set: {
                         Config.replacement = $0 == Self.blockOnly ? nil : $0
                         model.replacement = Config.replacement
                     }
                 )) {
-                    Text("Block only (no redirect)").tag(Self.blockOnly)
+                    Label("Block only (no redirect)", systemImage: "nosign").tag(Self.blockOnly)
                     ForEach(Config.availablePredefinedApps, id: \.target) { app in
-                        Text(Config.isWebURL(app.target) ? "\(app.name) (Web)" : app.name).tag(app.target)
+                        appLabel(Config.isWebURL(app.target) ? "\(app.name) (Web)" : app.name, target: app.target)
+                            .tag(app.target)
                     }
                     if let current = model.replacement,
                        !Config.availablePredefinedApps.contains(where: { $0.target == current }) {
                         let label = Config.isWebURL(current) ? current : (current as NSString).lastPathComponent
-                        Text("\(label)\(Config.replacementIsMissing ? " (not found)" : "")").tag(current)
+                        appLabel("\(label)\(Config.replacementIsMissing ? " (not found)" : "")", target: current)
+                            .tag(current)
                     }
-            }
-            Picker("Media key target", selection: Binding(
-                get: { model.targetApp ?? Self.automatic },
-                set: {
-                    Config.targetApp = $0 == Self.automatic ? nil : $0
-                    model.targetApp = Config.targetApp
-                }
-            )) {
-                Text("Automatic (Now Playing)").tag(Self.automatic)
-                ForEach(targetChoices, id: \.self) { id in
-                    Text(Self.targetLabel(id)).tag(id)
-                }
-            }
-            Toggle("Cycle target with a shortcut", isOn: Binding(
-                get: { model.cycleShortcut },
-                set: {
-                    Config.cycleShortcut = $0
-                    model.cycleShortcut = $0
-                    applyShortcut()
-                }
-            ))
-            if model.cycleShortcut {
-                LabeledContent("Shortcut") {
-                    HStack {
-                        ShortcutRecorder(
-                            shortcut: model.cycleBinding,
-                            onCapture: {
-                                Config.cycleShortcutBinding = $0
-                                model.cycleBinding = Config.cycleShortcutBinding
-                                applyShortcut()
-                            },
-                            onRecordingChange: { actions.shortcutRecording($0) }
-                        )
-                        .frame(width: 130)
-                        Button("Reset") {
-                            Config.cycleShortcutBinding = .defaultCycle
-                            model.cycleBinding = .defaultCycle
-                            applyShortcut()
-                        }
-                        .disabled(model.cycleBinding == .defaultCycle)
-                    }
-                }
-                Toggle("Show a message when the target changes", isOn: Binding(
-                    get: { model.showTargetToast },
-                    set: { Config.showTargetToast = $0; model.showTargetToast = $0 }
-                ))
-                if let error = model.shortcutError {
-                    Text(error).font(.footnote).foregroundStyle(.red)
-                }
-            }
-            Toggle("Resume last player", isOn: Binding(
-                get: { model.resumeLastPlayer },
-                set: { Config.resumeLastPlayer = $0; model.resumeLastPlayer = $0 }
-            ))
-            .help("With nothing playing, the play key resumes the app that played last (if it's still running and scriptable) instead of launching the replacement.")
-            HStack {
-                Button("Choose App…") { actions.chooseApp(); model.refresh() }
-                Button("Custom URL…") { actions.chooseURL(); model.refresh() }
-            }
+                } label: { Tile("Replacement app", "arrow.triangle.turn.up.right.circle", .blue) }
 
-            }
+                HStack {
+                    Button("Choose App…") { actions.chooseApp(); model.refresh() }
+                    Button("Custom URL…") { actions.chooseURL(); model.refresh() }
+                }
+
+                Toggle(isOn: Binding(
+                    get: { model.resumeLastPlayer },
+                    set: { Config.resumeLastPlayer = $0; model.resumeLastPlayer = $0 }
+                )) { Tile("Resume last player", "play.circle", .orange) }
+                .help("With nothing playing, the play key resumes the app that played last (if it's still running and scriptable) instead of launching the replacement.")
+            } header: { Text("Routing") }
 
             Section {
-                Toggle("Launch at login", isOn: Binding(
+                Picker(selection: Binding(
+                    get: { model.targetApp ?? Self.automatic },
+                    set: {
+                        Config.targetApp = $0 == Self.automatic ? nil : $0
+                        model.targetApp = Config.targetApp
+                    }
+                )) {
+                    Label("Automatic (Now Playing)", systemImage: "sparkles").tag(Self.automatic)
+                    ForEach(targetChoices, id: \.self) { id in
+                        Label {
+                            Text(Self.targetLabel(id))
+                        } icon: {
+                            Image(nsImage: Self.appIcon(bundleID: id))
+                        }
+                        .tag(id)
+                    }
+                } label: { Tile("Media key target", "scope", .pink) }
+
+                Toggle(isOn: Binding(
+                    get: { model.cycleShortcut },
+                    set: {
+                        Config.cycleShortcut = $0
+                        model.cycleShortcut = $0
+                        applyShortcut()
+                    }
+                )) { Tile("Cycle with a shortcut", "keyboard", .purple) }
+
+                if model.cycleShortcut {
+                    LabeledContent {
+                        HStack {
+                            ShortcutRecorder(
+                                shortcut: model.cycleBinding,
+                                onCapture: {
+                                    Config.cycleShortcutBinding = $0
+                                    model.cycleBinding = Config.cycleShortcutBinding
+                                    applyShortcut()
+                                },
+                                onRecordingChange: { actions.shortcutRecording($0) }
+                            )
+                            .frame(width: 130)
+                            Button("Reset") {
+                                Config.cycleShortcutBinding = .defaultCycle
+                                model.cycleBinding = .defaultCycle
+                                applyShortcut()
+                            }
+                            .disabled(model.cycleBinding == .defaultCycle)
+                        }
+                    } label: { Tile("Shortcut", "command", .gray) }
+
+                    Toggle(isOn: Binding(
+                        get: { model.showTargetToast },
+                        set: { Config.showTargetToast = $0; model.showTargetToast = $0 }
+                    )) { Tile("Show a message on change", "bubble.left", .teal) }
+
+                    if let error = model.shortcutError {
+                        Text(error).font(.footnote).foregroundStyle(.red)
+                    }
+                }
+            } header: { Text("Media key target") }
+
+            Section {
+                Toggle(isOn: Binding(
                     get: { model.launchAtLogin },
                     set: { _ in
                         LoginItem.toggle()
                         model.launchAtLogin = SMAppService.mainApp.status == .enabled
                     }
-                ))
-                Toggle("Show menu bar icon", isOn: Binding(
+                )) { Tile("Launch at login", "sunrise", .orange) }
+                Toggle(isOn: Binding(
                     get: { model.showMenuBarIcon },
                     set: { model.showMenuBarIcon = $0; actions.setIconHidden(!$0) }
-                ))
-                Toggle("Debug logging", isOn: Binding(
+                )) { Tile("Show menu bar icon", "menubar.rectangle", .indigo) }
+                Toggle(isOn: Binding(
                     get: { model.debugLogging },
                     set: {
                         Config.debugLogging = $0
                         model.debugLogging = $0
                         if $0 { DebugLog.shared.log("debug logging on") }
                     }
-                ))
-                Button("Reveal Log in Finder") { DebugLog.shared.reveal() }
-
-            }
+                )) { Tile("Debug logging", "ladybug", .brown) }
+                Button { DebugLog.shared.reveal() } label: {
+                    Label("Reveal Log in Finder", systemImage: "doc.text.magnifyingglass")
+                }
+            } header: { Text("General") }
 
             Section {
-                LabeledContent("Input Monitoring", value: model.inputMonitoring ? "Granted" : "Not granted")
+                LabeledContent {
+                    status(model.inputMonitoring ? "Granted" : "Not granted", ok: model.inputMonitoring)
+                } label: { Tile("Input Monitoring", "keyboard.badge.eye", .blue) }
                 // macOS 27 renamed Accessibility to "Device Control and Data Access"
-                LabeledContent("Accessibility / Device Control", value: model.accessibility ? "Granted" : "Not granted")
-                Button("Reset Permissions…") { actions.resetPermissions() }
-            }
+                LabeledContent {
+                    status(model.accessibility ? "Granted" : "Not granted", ok: model.accessibility)
+                } label: { Tile("Accessibility / Device Control", "accessibility", .blue) }
+                Button { actions.resetPermissions() } label: {
+                    Label("Reset Permissions…", systemImage: "lock.rotation")
+                }
+            } header: { Text("Permissions") }
 
             Section {
-                LabeledContent("Now Playing detection", value: Self.statusText(model.nowPlayingHealth, enabled: model.isEnabled))
+                LabeledContent {
+                    detectionStatus
+                } label: { Tile("Now Playing detection", "waveform", .green) }
             } footer: {
                 if case .failed = model.nowPlayingHealth, model.isEnabled {
                     Text("Using a basic check (is any audio playing?) instead. Music is still blocked and keys still routed, but a paused player is no longer detected.")
@@ -215,8 +239,96 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
+        .scrollContentBackground(.hidden)
+        .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
+        .windowGlass()
+    }
+
+    private func status(_ text: String, ok: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(ok ? .green : .red)
+            Text(text).foregroundStyle(.secondary)
+        }
+    }
+
+    private var detectionStatus: some View {
+        let text = Self.statusText(model.nowPlayingHealth, enabled: model.isEnabled)
+        let color: Color
+        switch (model.isEnabled, model.nowPlayingHealth) {
+        case (false, _): color = .gray
+        case (_, .ok): color = .green
+        case (_, .starting): color = .yellow
+        case (_, .failed): color = .red
+        }
+        return HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(text).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func appLabel(_ title: String, target: String) -> some View {
+        if Config.isWebURL(target) {
+            Label(title, systemImage: "globe")
+        } else {
+            Label {
+                Text(title)
+            } icon: {
+                Image(nsImage: Self.appIcon(path: target))
+            }
+        }
+    }
+
+    static func appIcon(path: String) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        icon.size = NSSize(width: 16, height: 16)
+        return icon
+    }
+
+    static func appIcon(bundleID: String) -> NSImage {
+        guard let url = TargetApps.appURL(for: bundleID) else {
+            return NSImage(systemSymbolName: "app", accessibilityDescription: nil) ?? NSImage()
+        }
+        return appIcon(path: url.path)
+    }
+}
+
+/// Rounded, tinted icon tile + title, in the style of System Settings rows.
+private struct Tile: View {
+    let title: String
+    let symbol: String
+    let color: Color
+
+    init(_ title: String, _ symbol: String, _ color: Color) {
+        self.title = title
+        self.symbol = symbol
+        self.color = color
+    }
+
+    var body: some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+}
+
+private extension View {
+    /// Glass/material window background where the OS supports it.
+    @ViewBuilder
+    func windowGlass() -> some View {
+        if #available(macOS 15.0, *) {
+            containerBackground(.regularMaterial, for: .window)
+        } else {
+            self
+        }
     }
 }
 
@@ -253,7 +365,9 @@ final class SettingsWindowController: NSWindowController {
         let hosting = NSHostingController(rootView: SettingsView(model: model, actions: actions))
         let window = NSWindow(contentViewController: hosting)
         window.title = "Music Router Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         super.init(window: window)
     }

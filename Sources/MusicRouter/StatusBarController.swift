@@ -169,7 +169,41 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         ))
 
         menu.delegate = self
+        applyIcons(to: menu)
         return menu
+    }
+
+    private static func symbol(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
+    }
+
+    /// Small leading icons, matched by item so each item's construction stays unchanged.
+    private func applyIcons(to menu: NSMenu) {
+        let icons: [String: String] = [
+            "Enabled": "power",
+            "Media Key Target": "scope",
+            "Replacement App": "arrow.triangle.turn.up.right.circle",
+            "Resume Last Player": "play.circle",
+            "Launch at Login": "sunrise",
+            "Settings…": "gearshape",
+            "Hide Menu Bar Icon": "eye.slash",
+            "Debug Logging": "ladybug",
+            "Reveal Log in Finder": "doc.text.magnifyingglass",
+            "About Music Router": "info.circle",
+            "Help": "questionmark.circle",
+            "Quit Music Router": "xmark.circle",
+        ]
+        for item in menu.items {
+            if let name = icons[item.title] { item.image = Self.symbol(name) }
+        }
+        permissionsItem?.image = Self.symbol("lock.rotation")
+    }
+
+    private static func appIcon(path: String) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        icon.size = NSSize(width: 16, height: 16)
+        return icon
     }
 
     /// Refresh on open so grants and installs made while running show up.
@@ -191,6 +225,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let auto = NSMenuItem(title: "Automatic (Now Playing)", action: #selector(selectTarget(_:)), keyEquivalent: "")
         auto.target = self
+        auto.image = Self.symbol("sparkles")
         auto.state = current == nil ? .on : .off
         submenu.addItem(auto)
         submenu.addItem(.separator())
@@ -204,6 +239,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let item = NSMenuItem(title: title, action: #selector(selectTarget(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = id
+            if let url = TargetApps.appURL(for: id) { item.image = Self.appIcon(path: url.path) }
             item.state = current == id ? .on : .off
             submenu.addItem(item)
         }
@@ -211,11 +247,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         submenu.addItem(.separator())
         let shortcut = NSMenuItem(title: "Cycle with \(Config.cycleShortcutBinding.display)", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
         shortcut.target = self
+        shortcut.image = Self.symbol("keyboard")
         shortcut.state = Config.cycleShortcut ? .on : .off
         submenu.addItem(shortcut)
 
         let toast = NSMenuItem(title: "Show Message on Change", action: #selector(toggleTargetToast(_:)), keyEquivalent: "")
         toast.target = self
+        toast.image = Self.symbol("bubble.left")
         toast.state = Config.showTargetToast ? .on : .off
         submenu.addItem(toast)
         return submenu
@@ -253,6 +291,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         blockOnlyItem.target = self
+        blockOnlyItem.image = Self.symbol("nosign")
         blockOnlyItem.state = current == nil ? .on : .off
         submenu.addItem(blockOnlyItem)
 
@@ -268,6 +307,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
             item.target = self
             item.representedObject = app.target
+            item.image = Config.isWebURL(app.target) ? Self.symbol("globe") : Self.appIcon(path: app.target)
             item.state = current == app.target ? .on : .off
             submenu.addItem(item)
         }
@@ -290,6 +330,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         chooseItem.target = self
+        chooseItem.image = Self.symbol("folder")
         submenu.addItem(chooseItem)
 
         let customURLItem = NSMenuItem(
@@ -298,6 +339,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         customURLItem.target = self
+        customURLItem.image = Self.symbol("link")
         submenu.addItem(customURLItem)
 
         return submenu
