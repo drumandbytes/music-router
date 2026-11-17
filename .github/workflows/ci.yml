@@ -15,6 +15,10 @@ jobs:
           persist-credentials: false
       - run: swift build
       - run: swift test --enable-code-coverage
+      # build-app.sh does this on release, so a broken adapter would otherwise
+      # only show up when cutting one
+      - name: Build the adapter framework
+        run: scripts/build-adapter.sh "$RUNNER_TEMP/adapter"
       - name: Coverage summary
         run: |
           xcrun llvm-cov report \
