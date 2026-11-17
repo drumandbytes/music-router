@@ -167,17 +167,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applyCycleShortcut() -> Bool {
         cycleHotKey?.unregister()
         cycleHotKey = nil
-        guard Config.cycleShortcut else { return true }
+        guard Config.cycleShortcut else {
+            DebugLog.shared.log("cycle shortcut off")
+            return true
+        }
         let shortcut = Config.cycleShortcutBinding
         cycleHotKey = GlobalHotKey(keyCode: shortcut.keyCode, modifiers: shortcut.modifiers) { [weak self] in
             self?.cycleTarget()
         }
-        if cycleHotKey == nil { DebugLog.shared.log("cycle shortcut \(shortcut.display) registration failed") }
+        DebugLog.shared.log("cycle shortcut \(shortcut.display) " + (cycleHotKey == nil ? "registration failed" : "registered"))
         return cycleHotKey != nil
     }
 
     /// While the recorder listens, the current hotkey must not swallow the press.
     private func setShortcutRecording(_ recording: Bool) {
+        DebugLog.shared.log("shortcut recording=\(recording)")
         if recording {
             cycleHotKey?.unregister()
             cycleHotKey = nil
