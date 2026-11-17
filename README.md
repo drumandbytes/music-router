@@ -263,6 +263,11 @@ Everything in the menu is a plain `defaults` key in
 | `enabled` | bool | Interception on/off (default `true`) |
 | `debugLogging` | bool | Write `~/Library/Logs/MusicRouter.log` |
 
+## Help
+
+**Help** in the menu opens [docs/help.md](docs/help.md): permissions, a key
+going to the wrong app, detection status, the shortcut, scripting and removal.
+
 ## Reporting a bug
 
 Turn on **Debug Logging** in the menu (or `defaults write

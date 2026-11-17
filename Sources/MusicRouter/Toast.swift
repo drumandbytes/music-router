@@ -118,6 +118,7 @@ final class Toast {
     private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
                             backing: .buffered, defer: false)
+        panel.title = "Music Router"
         panel.level = .statusBar
         panel.isOpaque = false
         panel.backgroundColor = .clear

@@ -126,6 +126,13 @@ enum Config {
         return !FileManager.default.fileExists(atPath: replacement)
     }
 
+    /// Inline validation message for the Custom URL field; `nil` = acceptable.
+    static func urlError(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return "Enter a URL." }
+        return isWebURL(trimmed) ? nil : "It needs to start with http:// or https://. Use Choose App… for a local app."
+    }
+
     static func isWebURL(_ target: String) -> Bool {
         guard let url = URL(string: target), let scheme = url.scheme else { return false }
         return scheme.hasPrefix("http")

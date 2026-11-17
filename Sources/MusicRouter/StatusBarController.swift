@@ -9,6 +9,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private var isEnabled = Config.isEnabled
     private var replacementItem: NSMenuItem?
     private var permissionsItem: NSMenuItem?
+    private var inputMonitoringItem: NSMenuItem?
+    private var accessibilityItem: NSMenuItem?
     private var toggleItem: NSMenuItem?
     private var resumeItem: NSMenuItem?
     private lazy var settings = SettingsWindowController(actions: SettingsActions(
@@ -136,9 +138,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(revealLogItem)
 
         // Surfaces the easy-to-half-grant dual permission instead of silently
-        // dead keys. Resetting when already granted is harmless.
-        let permissionsItem = NSMenuItem(title: "", action: #selector(resetPermissions), keyEquivalent: "")
+        // dead keys; each row shows its grant and opens its System Settings pane.
+        menu.addItem(.separator())
+
+        let inputMonitoringItem = NSMenuItem(title: "Input Monitoring", action: #selector(openInputMonitoringPane), keyEquivalent: "")
+        inputMonitoringItem.target = self
+        menu.addItem(inputMonitoringItem)
+        self.inputMonitoringItem = inputMonitoringItem
+
+        // macOS 27 renamed Accessibility to "Device Control and Data Access"
+        let accessibilityItem = NSMenuItem(title: "Accessibility / Device Control", action: #selector(openAccessibilityPane), keyEquivalent: "")
+        accessibilityItem.target = self
+        menu.addItem(accessibilityItem)
+        self.accessibilityItem = accessibilityItem
+
+        // Resetting when already granted is harmless.
+        let permissionsItem = NSMenuItem(title: "Reset Permissions…", action: #selector(resetPermissions), keyEquivalent: "")
         permissionsItem.target = self
+        permissionsItem.image = Self.symbol("lock.rotation")
         menu.addItem(permissionsItem)
         self.permissionsItem = permissionsItem
 
@@ -169,7 +186,40 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         ))
 
         menu.delegate = self
+        applyIcons(to: menu)
         return menu
+    }
+
+    private static func symbol(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
+    }
+
+    /// Small leading icons, matched by item so each item's construction stays unchanged.
+    private func applyIcons(to menu: NSMenu) {
+        let icons: [String: String] = [
+            "Enabled": "power",
+            "Media Key Target": "scope",
+            "Replacement App": "arrow.triangle.turn.up.right.circle",
+            "Resume Last Player": "play.circle",
+            "Launch at Login": "sunrise",
+            "Settings…": "gearshape",
+            "Hide Menu Bar Icon": "eye.slash",
+            "Debug Logging": "ladybug",
+            "Reveal Log in Finder": "doc.text.magnifyingglass",
+            "About Music Router": "info.circle",
+            "Help": "questionmark.circle",
+            "Quit Music Router": "xmark.circle",
+        ]
+        for item in menu.items {
+            if let name = icons[item.title] { item.image = Self.symbol(name) }
+        }
+    }
+
+    private static func appIcon(path: String) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        icon.size = NSSize(width: 16, height: 16)
+        return icon
     }
 
     /// Refresh on open so grants and installs made while running show up.
@@ -179,10 +229,29 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         replacementItem?.submenu = buildReplacementMenu()
         targetItem?.submenu = buildTargetMenu()
 
-        let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
-        let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
-        // macOS 27 renamed Accessibility to "Device Control and Data Access"; show both
-        permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility/Device Control \(accessibility))"
+        inputMonitoringItem?.image = Self.statusSymbol(granted: CGPreflightListenEventAccess())
+        accessibilityItem?.image = Self.statusSymbol(granted: AXIsProcessTrusted())
+    }
+
+    private static func statusSymbol(granted: Bool) -> NSImage? {
+        let name = granted ? "checkmark.circle.fill" : "xmark.circle.fill"
+        let color: NSColor = granted ? .systemGreen : .systemRed
+        return NSImage(systemSymbolName: name, accessibilityDescription: granted ? "Granted" : "Not granted")?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular).applying(.init(paletteColors: [.white, color])))
+    }
+
+    @objc private func openInputMonitoringPane() {
+        openPrivacyPane("Privacy_ListenEvent")
+    }
+
+    @objc private func openAccessibilityPane() {
+        openPrivacyPane("Privacy_Accessibility")
+    }
+
+    private func openPrivacyPane(_ anchor: String) {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func buildTargetMenu() -> NSMenu {
@@ -191,6 +260,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let auto = NSMenuItem(title: "Automatic (Now Playing)", action: #selector(selectTarget(_:)), keyEquivalent: "")
         auto.target = self
+        auto.image = Self.symbol("sparkles")
         auto.state = current == nil ? .on : .off
         submenu.addItem(auto)
         submenu.addItem(.separator())
@@ -204,6 +274,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let item = NSMenuItem(title: title, action: #selector(selectTarget(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = id
+            if let url = TargetApps.appURL(for: id) { item.image = Self.appIcon(path: url.path) }
             item.state = current == id ? .on : .off
             submenu.addItem(item)
         }
@@ -211,11 +282,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         submenu.addItem(.separator())
         let shortcut = NSMenuItem(title: "Cycle with \(Config.cycleShortcutBinding.display)", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
         shortcut.target = self
+        shortcut.image = Self.symbol("keyboard")
         shortcut.state = Config.cycleShortcut ? .on : .off
         submenu.addItem(shortcut)
 
         let toast = NSMenuItem(title: "Show Message on Change", action: #selector(toggleTargetToast(_:)), keyEquivalent: "")
         toast.target = self
+        toast.image = Self.symbol("bubble.left")
         toast.state = Config.showTargetToast ? .on : .off
         submenu.addItem(toast)
         return submenu
@@ -253,6 +326,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         blockOnlyItem.target = self
+        blockOnlyItem.image = Self.symbol("nosign")
         blockOnlyItem.state = current == nil ? .on : .off
         submenu.addItem(blockOnlyItem)
 
@@ -268,6 +342,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
             item.target = self
             item.representedObject = app.target
+            item.image = Config.isWebURL(app.target) ? Self.symbol("globe") : Self.appIcon(path: app.target)
             item.state = current == app.target ? .on : .off
             submenu.addItem(item)
         }
@@ -290,6 +365,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         chooseItem.target = self
+        chooseItem.image = Self.symbol("folder")
         submenu.addItem(chooseItem)
 
         let customURLItem = NSMenuItem(
@@ -298,6 +374,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         customURLItem.target = self
+        customURLItem.image = Self.symbol("link")
         submenu.addItem(customURLItem)
 
         return submenu
@@ -366,43 +443,31 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func chooseCustomURL() {
-        let alert = NSAlert()
-        alert.messageText = "Custom Replacement URL"
-        alert.informativeText = "Opened instead of Music.app, e.g. a web player not in the list above."
-        alert.addButton(withTitle: "Set")
-        alert.addButton(withTitle: "Cancel")
-
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
-        field.placeholderString = "https://example.com/player"
-        if let current = Config.replacement, Config.isWebURL(current) {
-            field.stringValue = current
-        }
-        alert.accessoryView = field
-        alert.window.initialFirstResponder = field
-
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard Config.isWebURL(text) else {
-            let error = NSAlert()
-            error.alertStyle = .warning
-            error.messageText = "Not a Web URL"
-            error.informativeText = "“\(text)” needs to start with http:// or https://. Use Choose App… for a local app."
-            error.runModal()
-            return
-        }
-        Config.replacement = text
+        let current = Config.replacement.flatMap { Config.isWebURL($0) ? $0 : nil } ?? ""
+        let result = Dialog.run(DialogSpec(
+            symbol: "link",
+            color: .blue,
+            title: "Custom Replacement URL",
+            message: "Opened instead of Music.app, e.g. a web player not in the list.",
+            primary: "Set",
+            field: .init(placeholder: "https://example.com/player", initial: current, validate: Config.urlError)
+        ))
+        guard result.accepted else { return }
+        Config.replacement = result.text
     }
 
     /// Clears both TCC grants (they go stale when the signing identity changes)
     /// and `hasRequestedPermissions`, then relaunches so the OS re-evaluates.
     @objc private func resetPermissions() {
-        let confirm = NSAlert()
-        confirm.messageText = "Reset Permissions?"
-        confirm.informativeText = "Clears the Input Monitoring and Accessibility/Device Control grants for Music Router and relaunches it so you can grant them again."
-        confirm.addButton(withTitle: "Reset")
-        confirm.addButton(withTitle: "Cancel")
-        NSApp.activate(ignoringOtherApps: true)
-        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+        let confirmed = Dialog.run(DialogSpec(
+            symbol: "lock.rotation",
+            color: .red,
+            title: "Reset Permissions?",
+            message: "Clears the Input Monitoring and Accessibility / Device Control grants for Music Router and relaunches it so you can grant them again.",
+            primary: "Reset",
+            destructive: true
+        )).accepted
+        guard confirmed else { return }
 
         for service in ["ListenEvent", "Accessibility"] {
             let process = Process()
@@ -422,12 +487,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showAbout() {
-        // accessory apps don't auto-activate; else the panel opens behind
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(nil)
+        AboutWindowController.shared.show()
     }
 
     @objc private func showHelp() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/drumandbytes/music-router")!)
+        NSWorkspace.shared.open(Links.help)
     }
 }
