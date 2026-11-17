@@ -13,6 +13,8 @@ final class SettingsModel: ObservableObject {
     @Published var showMenuBarIcon = !Config.menuBarIconHidden
     @Published var debugLogging = Config.debugLogging
     @Published var resumeLastPlayer = Config.resumeLastPlayer
+    @Published var targetApp = Config.targetApp
+    @Published var cycleShortcut = Config.cycleShortcut
     @Published var inputMonitoring = CGPreflightListenEventAccess()
     @Published var accessibility = AXIsProcessTrusted()
     @Published var nowPlayingHealth = NowPlayingObserver.Health.starting
@@ -38,6 +40,8 @@ final class SettingsModel: ObservableObject {
         showMenuBarIcon = !Config.menuBarIconHidden
         debugLogging = Config.debugLogging
         resumeLastPlayer = Config.resumeLastPlayer
+        targetApp = Config.targetApp
+        cycleShortcut = Config.cycleShortcut
         inputMonitoring = CGPreflightListenEventAccess()
         accessibility = AXIsProcessTrusted()
     }
@@ -50,6 +54,7 @@ struct SettingsActions {
     var chooseURL: () -> Void
     var resetPermissions: () -> Void
     var nowPlayingHealth: () -> NowPlayingObserver.Health
+    var cycleShortcutChanged: () -> Void
 }
 
 struct SettingsView: View {
@@ -57,6 +62,18 @@ struct SettingsView: View {
     let actions: SettingsActions
 
     private static let blockOnly = "__block_only__"
+    private static let automatic = "__automatic__"
+
+    private var targetChoices: [String] {
+        var ids = TargetApps.installed().map(\.bundleID)
+        if let current = model.targetApp, !ids.contains(current) { ids.append(current) }
+        return ids
+    }
+
+    static func targetLabel(_ id: String) -> String {
+        let name = TargetApps.name(for: id)
+        return TargetApps.isScriptable(id) ? name : "\(name) (launch only)"
+    }
 
     var body: some View {
         Form {
@@ -83,6 +100,22 @@ struct SettingsView: View {
                         Text("\(label)\(Config.replacementIsMissing ? " (not found)" : "")").tag(current)
                     }
             }
+            Picker("Media key target", selection: Binding(
+                get: { model.targetApp ?? Self.automatic },
+                set: {
+                    Config.targetApp = $0 == Self.automatic ? nil : $0
+                    model.targetApp = Config.targetApp
+                }
+            )) {
+                Text("Automatic (Now Playing)").tag(Self.automatic)
+                ForEach(targetChoices, id: \.self) { id in
+                    Text(Self.targetLabel(id)).tag(id)
+                }
+            }
+            Toggle("Cycle target with ⌃⌥⌘M", isOn: Binding(
+                get: { model.cycleShortcut },
+                set: { Config.cycleShortcut = $0; model.cycleShortcut = $0; actions.cycleShortcutChanged() }
+            ))
             Toggle("Resume last player", isOn: Binding(
                 get: { model.resumeLastPlayer },
                 set: { Config.resumeLastPlayer = $0; model.resumeLastPlayer = $0 }

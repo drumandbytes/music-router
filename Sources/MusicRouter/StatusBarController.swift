@@ -17,9 +17,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         chooseApp: { [weak self] in self?.chooseReplacementApp() },
         chooseURL: { [weak self] in self?.chooseCustomURL() },
         resetPermissions: { [weak self] in self?.resetPermissions() },
-        nowPlayingHealth: { [weak self] in self?.nowPlayingHealth() ?? .starting }
+        nowPlayingHealth: { [weak self] in self?.nowPlayingHealth() ?? .starting },
+        cycleShortcutChanged: { [weak self] in self?.onCycleShortcutChanged?() }
     ))
     var onToggle: ((Bool) -> Void)?
+    var onCycleShortcutChanged: (() -> Void)?
+    private var targetItem: NSMenuItem?
+    private var flashWork: DispatchWorkItem?
     var nowPlayingHealth: () -> NowPlayingObserver.Health = { .starting }
 
     override init() {
@@ -70,6 +74,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         replacementItem.submenu = NSMenu()
         menu.addItem(replacementItem)
         self.replacementItem = replacementItem
+
+        // Submenu is filled in menuWillOpen (running players change).
+        let targetItem = NSMenuItem(title: "Media Key Target", action: nil, keyEquivalent: "")
+        targetItem.submenu = NSMenu()
+        menu.addItem(targetItem)
+        self.targetItem = targetItem
 
         let resumeItem = NSMenuItem(
             title: "Resume Last Player",
@@ -165,11 +175,61 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         toggleItem?.state = isEnabled ? .on : .off
         resumeItem?.state = Config.resumeLastPlayer ? .on : .off
         replacementItem?.submenu = buildReplacementMenu()
+        targetItem?.submenu = buildTargetMenu()
 
         let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
         let accessibility = AXIsProcessTrusted() ? "✓" : "✗"
         // macOS 27 renamed Accessibility to "Device Control and Data Access"; show both
         permissionsItem?.title = "Reset Permissions (Input Monitoring \(inputMonitoring), Accessibility/Device Control \(accessibility))"
+    }
+
+    private func buildTargetMenu() -> NSMenu {
+        let submenu = NSMenu()
+        let current = Config.targetApp
+
+        let auto = NSMenuItem(title: "Automatic (Now Playing)", action: #selector(selectTarget(_:)), keyEquivalent: "")
+        auto.target = self
+        auto.state = current == nil ? .on : .off
+        submenu.addItem(auto)
+        submenu.addItem(.separator())
+
+        var ids = TargetApps.installed().map(\.bundleID)
+        if let current, !ids.contains(current) { ids.append(current) }
+        for id in ids {
+            var title = TargetApps.name(for: id)
+            if !TargetApps.isScriptable(id) { title += " (launch only)" }
+            else if !TargetApps.isRunning(id) { title += " (not running)" }
+            let item = NSMenuItem(title: title, action: #selector(selectTarget(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = id
+            item.state = current == id ? .on : .off
+            submenu.addItem(item)
+        }
+
+        submenu.addItem(.separator())
+        let shortcut = NSMenuItem(title: "Cycle with ⌃⌥⌘M", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
+        shortcut.target = self
+        shortcut.state = Config.cycleShortcut ? .on : .off
+        submenu.addItem(shortcut)
+        return submenu
+    }
+
+    @objc private func selectTarget(_ sender: NSMenuItem) {
+        Config.targetApp = sender.representedObject as? String
+    }
+
+    @objc private func toggleCycleShortcut(_ sender: NSMenuItem) {
+        Config.cycleShortcut.toggle()
+        onCycleShortcutChanged?()
+    }
+
+    /// Brief status-bar label so a shortcut change is visible without opening the menu.
+    func flash(_ text: String) {
+        flashWork?.cancel()
+        statusItem.button?.title = " \(text)"
+        let work = DispatchWorkItem { [weak self] in self?.statusItem.button?.title = "" }
+        flashWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     private func buildReplacementMenu() -> NSMenu {

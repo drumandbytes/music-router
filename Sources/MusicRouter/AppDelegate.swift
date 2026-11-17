@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let launcherGuard = MusicLauncherGuard()
@@ -8,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionCheckTimer: Timer?
     private var hasRequestedAccessibility = false
     private var lastKeySwallowed = false
+    private var cycleHotKey: GlobalHotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let tap = MediaKeyTap { [weak self] key, isPressed in
@@ -38,11 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         setEnabled(Config.isEnabled)
+        applyCycleShortcut()
 
         let statusBar = StatusBarController()
         statusBar.onToggle = { [weak self] enabled in
             self?.setEnabled(enabled)
         }
+        statusBar.onCycleShortcutChanged = { [weak self] in self?.applyCycleShortcut() }
         statusBar.nowPlayingHealth = { [weak self] in self?.nowPlayingObserver.health ?? .starting }
         self.statusBar = statusBar
     }
@@ -62,6 +66,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Decides whether `MediaKeyTap` swallows the event, and launches/controls the replacement if so.
     private func shouldSwallow(_ key: MediaKeyTap.MediaKey, isPressed: Bool) -> Bool {
+        // A chosen scriptable player always gets the keys, whatever owns Now Playing.
+        if let target = Self.driveTarget(selected: Config.targetApp, isScriptable: TargetApps.isScriptable) {
+            let swallow = Self.decideSwallow(isPressed: isPressed, isSomethingOpen: false, lastKeySwallowed: lastKeySwallowed)
+            if isPressed {
+                lastKeySwallowed = swallow
+                DebugLog.shared.log("key=\(key) target=\(target) swallowed=\(swallow)")
+                sendToTarget(key, bundleID: target)
+            }
+            return swallow
+        }
         // read once: with the audio fallback the answer can change between reads
         let isSomethingOpen = nowPlayingObserver.isSomethingOpen
         let swallow = Self.decideSwallow(
@@ -82,6 +96,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static func decideSwallow(isPressed: Bool, isSomethingOpen: Bool, lastKeySwallowed: Bool) -> Bool {
         guard isPressed else { return lastKeySwallowed }
         return !isSomethingOpen
+    }
+
+    /// The selected target when we can actually control it. A target without a
+    /// dictionary (TIDAL) can't take keys, so it doesn't intercept; it's only
+    /// launched when nothing plays (see `handleMediaKey`).
+    static func driveTarget(selected: String?, isScriptable: (String) -> Bool) -> String? {
+        guard let selected, isScriptable(selected) else { return nil }
+        return selected
+    }
+
+    /// Sends to the target if running; otherwise launches it by path (which
+    /// AppleScript does implicitly) so the first press starts playback.
+    private func sendToTarget(_ key: MediaKeyTap.MediaKey, bundleID: String) {
+        if TargetApps.isRunning(bundleID) {
+            let sent = AppleScriptRemote.send(key, toBundleID: bundleID)
+            DebugLog.shared.log("target=\(bundleID) sent=\(sent)")
+        } else if let url = TargetApps.appURL(for: bundleID) {
+            let sent = AppleScriptRemote.send(key, toAppAtPath: url.path)
+            DebugLog.shared.log("target=\(bundleID) launched sent=\(sent)")
+            if !sent { NSWorkspace.shared.open(url) }
+        }
     }
 
     /// App to resume instead of the replacement: the last one that played, if
@@ -109,6 +144,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DebugLog.shared.log("resume lastPlaying=\(id) sent=\(sent)")
             if sent { return }
         }
+        // a chosen but unscriptable target (TIDAL) is launched instead of the replacement
+        if let selected = Config.targetApp, let url = TargetApps.appURL(for: selected) {
+            DebugLog.shared.log("launch target=\(selected)")
+            NSWorkspace.shared.open(url)
+            return
+        }
         // nothing playing: launch the replacement, AppleScript-forcing play
         // where it can; plain open for web players and unscriptable apps
         if let replacement = Config.replacement,
@@ -117,6 +158,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         Config.openReplacement()
+    }
+
+    /// ⌃⌥⌘M; re-run when the setting changes.
+    func applyCycleShortcut() {
+        cycleHotKey?.unregister()
+        cycleHotKey = nil
+        guard Config.cycleShortcut else { return }
+        cycleHotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_M), modifiers: UInt32(cmdKey | optionKey | controlKey)) { [weak self] in
+            self?.cycleTarget()
+        }
+        if cycleHotKey == nil { DebugLog.shared.log("cycle shortcut registration failed") }
+    }
+
+    private func cycleTarget() {
+        let next = TargetApps.nextTarget(after: Config.targetApp, running: TargetApps.running().map(\.bundleID).filter(TargetApps.isScriptable))
+        Config.targetApp = next
+        let label = next.map(TargetApps.name(for:)) ?? "Automatic"
+        DebugLog.shared.log("target cycled to \(next ?? "automatic")")
+        statusBar?.flash(label)
     }
 
     private func setEnabled(_ enabled: Bool) {
