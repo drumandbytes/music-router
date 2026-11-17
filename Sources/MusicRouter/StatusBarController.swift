@@ -237,7 +237,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let name = granted ? "checkmark.circle.fill" : "xmark.circle.fill"
         let color: NSColor = granted ? .systemGreen : .systemRed
         return NSImage(systemSymbolName: name, accessibilityDescription: granted ? "Granted" : "Not granted")?
-            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular).applying(.init(paletteColors: [color])))
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular).applying(.init(paletteColors: [.white, color])))
     }
 
     @objc private func openInputMonitoringPane() {
