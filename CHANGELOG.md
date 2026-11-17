@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/drumandbytes/music-router/compare/v1.1.2...v1.1.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ui:** present dialogs as sheets, not a modal loop ([#56](https://github.com/drumandbytes/music-router/issues/56)) ([fb30550](https://github.com/drumandbytes/music-router/commit/fb3055027c55cb4da644ac1b072e6925dff36469))
+
 ## [1.1.2](https://github.com/drumandbytes/music-router/compare/v1.1.1...v1.1.2) (2026-11-17)
 
 
