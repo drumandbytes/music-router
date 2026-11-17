@@ -53,7 +53,7 @@ enum Config {
     }
 
     /// Bundle ID of the player that always gets the media keys. `nil` =
-    /// automatic (Now Playing decides; see README).
+    /// automatic (Now Playing decides).
     static var targetApp: String? {
         get { UserDefaults.standard.string(forKey: "targetApp") }
         set {
