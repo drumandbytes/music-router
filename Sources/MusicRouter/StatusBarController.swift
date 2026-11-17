@@ -15,9 +15,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         setIconHidden: { [weak self] in self?.setIconHidden($0) },
         chooseApp: { [weak self] in self?.chooseReplacementApp() },
         chooseURL: { [weak self] in self?.chooseCustomURL() },
-        resetPermissions: { [weak self] in self?.resetPermissions() }
+        resetPermissions: { [weak self] in self?.resetPermissions() },
+        nowPlayingHealth: { [weak self] in self?.nowPlayingHealth() ?? .starting }
     ))
     var onToggle: ((Bool) -> Void)?
+    var nowPlayingHealth: () -> NowPlayingObserver.Health = { .starting }
 
     override init() {
         super.init()

@@ -14,8 +14,23 @@ final class SettingsModel: ObservableObject {
     @Published var debugLogging = Config.debugLogging
     @Published var inputMonitoring = CGPreflightListenEventAccess()
     @Published var accessibility = AXIsProcessTrusted()
+    @Published var nowPlayingHealth = NowPlayingObserver.Health.starting
+    private var healthProvider: () -> NowPlayingObserver.Health = { .starting }
+    private var healthObserver: NSObjectProtocol?
+
+    func bindNowPlayingHealth(_ provider: @escaping () -> NowPlayingObserver.Health) {
+        healthProvider = provider
+        nowPlayingHealth = provider()
+        healthObserver = NotificationCenter.default.addObserver(
+            forName: NowPlayingObserver.healthChangedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.nowPlayingHealth = self.healthProvider()
+        }
+    }
 
     func refresh() {
+        nowPlayingHealth = healthProvider()
         isEnabled = Config.isEnabled
         replacement = Config.replacement
         launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -32,9 +47,10 @@ struct SettingsActions {
     var chooseApp: () -> Void
     var chooseURL: () -> Void
     var resetPermissions: () -> Void
+    var nowPlayingHealth: () -> NowPlayingObserver.Health
 }
 
-private struct SettingsView: View {
+struct SettingsView: View {
     @ObservedObject var model: SettingsModel
     let actions: SettingsActions
 
@@ -102,9 +118,28 @@ private struct SettingsView: View {
                 LabeledContent("Accessibility / Device Control", value: model.accessibility ? "Granted" : "Not granted")
                 Button("Reset Permissions…") { actions.resetPermissions() }
             }
+
+            Section {
+                LabeledContent("Now Playing detection", value: Self.statusText(model.nowPlayingHealth, enabled: model.isEnabled))
+            } footer: {
+                if case .failed = model.nowPlayingHealth, model.isEnabled {
+                    Text("Using a basic check (is any audio playing?) instead. Music is still blocked and keys still routed, but a paused player is no longer detected.")
+                }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 440, height: 470)
+        .frame(width: 440, height: 560)
+    }
+}
+
+extension SettingsView {
+    static func statusText(_ health: NowPlayingObserver.Health, enabled: Bool) -> String {
+        guard enabled else { return "Off" }
+        switch health {
+        case .starting: return "Starting…"
+        case .ok: return "Working"
+        case .failed(let reason): return "Unavailable: \(reason)"
+        }
     }
 }
 
@@ -126,6 +161,7 @@ final class SettingsWindowController: NSWindowController {
     let model = SettingsModel()
 
     init(actions: SettingsActions) {
+        model.bindNowPlayingHealth(actions.nowPlayingHealth)
         let hosting = NSHostingController(rootView: SettingsView(model: model, actions: actions))
         let window = NSWindow(contentViewController: hosting)
         window.title = "Music Router Settings"

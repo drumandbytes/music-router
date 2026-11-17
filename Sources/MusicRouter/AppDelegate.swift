@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBar.onToggle = { [weak self] enabled in
             self?.setEnabled(enabled)
         }
+        statusBar.nowPlayingHealth = { [weak self] in self?.nowPlayingObserver.health ?? .starting }
         self.statusBar = statusBar
     }
 
@@ -61,14 +62,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Decides whether `MediaKeyTap` swallows the event, and launches/controls the replacement if so.
     private func shouldSwallow(_ key: MediaKeyTap.MediaKey, isPressed: Bool) -> Bool {
+        // read once: with the audio fallback the answer can change between reads
+        let isSomethingOpen = nowPlayingObserver.isSomethingOpen
         let swallow = Self.decideSwallow(
             isPressed: isPressed,
-            isSomethingOpen: nowPlayingObserver.isSomethingOpen,
+            isSomethingOpen: isSomethingOpen,
             lastKeySwallowed: lastKeySwallowed
         )
         if isPressed {
             lastKeySwallowed = swallow
-            DebugLog.shared.log("key=\(key) open=\(nowPlayingObserver.isSomethingOpen) swallowed=\(swallow)")
+            DebugLog.shared.log("key=\(key) open=\(isSomethingOpen) swallowed=\(swallow)")
             if swallow { handleMediaKey(key) }
         }
         return swallow
