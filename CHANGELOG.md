@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/drumandbytes/music-router/compare/v1.1.0...v1.1.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ui:** keep menu icons visible on macOS 27 ([#48](https://github.com/drumandbytes/music-router/issues/48)) ([7dd6645](https://github.com/drumandbytes/music-router/commit/7dd6645612dab4652036029825efea2c3093dff5))
+
 ## [1.1.0](https://github.com/drumandbytes/music-router/compare/v1.0.0...v1.1.0) (2026-11-17)
 
 
