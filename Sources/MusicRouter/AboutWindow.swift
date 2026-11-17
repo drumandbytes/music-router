@@ -68,6 +68,7 @@ final class AboutWindowController: NSWindowController {
 
     private init() {
         let window = NSWindow(contentViewController: NSHostingController(rootView: AboutView()))
+        window.title = "About Music Router" // hidden visually, but shown in window lists
         window.styleMask = [.titled, .closable]
         window.applyGlassChrome(hideTitle: true)
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true

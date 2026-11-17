@@ -106,6 +106,7 @@ enum Dialog {
             window?.orderOut(nil)
         })
         let panel = NSWindow(contentViewController: hosting)
+        panel.title = spec.title // hidden visually, but shown in window lists
         panel.styleMask = [.titled]
         panel.applyGlassChrome(hideTitle: true)
         panel.standardWindowButton(.closeButton)?.isHidden = true
