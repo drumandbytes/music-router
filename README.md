@@ -219,32 +219,30 @@ Settings → Privacy & Security → Open Anyway.
 
 ## Menu bar
 
-<img src="docs/menu.png" alt="Music Router menu: Enabled, Replacement App, Launch at Login, Hide Menu Bar Icon, Reset Permissions, About, Help, Quit" width="532">
+<img src="docs/menu.png" alt="Music Router menu: Enabled, Replacement App, Media Key Target, Settings, permission rows, About, Help, Quit" width="532">
 
-Click the note icon for:
+Click the note icon for the essentials:
 
 - **Enabled** — toggle both interception mechanisms on/off. Remembered
   across relaunches.
-- **Media Key Target** — pin the player that gets the media keys (or
-  Automatic), and enable the cycle shortcut (remappable in Settings); see above.
-- **Resume Last Player** — with nothing playing, the play key resumes the
-  last app that played, if still running and scriptable; see above.
 - **Replacement App** — a curated shortlist (Spotify, TIDAL, VLC, YouTube
   Music, Deezer, SoundCloud — native apps only show if actually installed),
   **Choose App…** for any other local app, **Custom URL…** for any other web
   player, or **Block Only** for no redirect.
-- **Launch at Login** — via `SMAppService`, no manual System Settings step.
-- **Settings…** (⌘,) — a window with the same options, plus permission
-  status and the Now Playing detection status. The icon stays hidden across launches; to get back, relaunch the
-  app (even while it's already running — double-click it again in Finder) to
-  open the settings window and tick **Show menu bar icon**.
-- **Hide Menu Bar Icon** — hides the icon; see above for the way back.
-- **Debug Logging** / **Reveal Log in Finder** — off by default; see
-  "Reporting a bug" below.
-- **Reset Permissions** — shows Input Monitoring/Accessibility grant status
-  inline, and (after confirming) clears both via `tccutil reset` and
-  relaunches the app so you can re-grant them. See "A note on signing" below
-  for why a grant can go stale in the first place.
+- **Media Key Target** — pin the player that gets the media keys, or
+  Automatic; see above.
+- **Settings…** (⌘,) — everything else: Resume Last Player, the cycle shortcut
+  and its message, Launch at Login, showing the menu bar icon, Debug Logging
+  and **Reveal Log in Finder**, the permission status with **Reset
+  Permissions…**, and the Now Playing detection status. The icon stays hidden
+  across launches; to get back, relaunch the app (even while it's already
+  running — double-click it again in Finder) to open Settings and tick **Show
+  menu bar icon**.
+- **Input Monitoring** / **Accessibility / Device Control** — a green check or
+  red cross for each grant; click one to open its pane. **Reset Permissions…**
+  (in Settings) clears both via `tccutil reset` and relaunches so you can
+  re-grant them; see "A note on signing" for why a grant can go stale.
+- **About** and **Help**.
 
 ## Settings from the command line
 
