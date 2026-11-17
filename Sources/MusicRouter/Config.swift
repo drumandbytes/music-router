@@ -54,6 +54,25 @@ enum Config {
         set { UserDefaults.standard.set(newValue, forKey: "resumeLastPlayer") }
     }
 
+    /// Bundle ID of the player that always gets the media keys. `nil` =
+    /// automatic (Now Playing decides; see README).
+    static var targetApp: String? {
+        get { UserDefaults.standard.string(forKey: "targetApp") }
+        set {
+            if let newValue {
+                UserDefaults.standard.set(newValue, forKey: "targetApp")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "targetApp")
+            }
+        }
+    }
+
+    /// ⌃⌥⌘M cycles `targetApp` through the running players. Off by default.
+    static var cycleShortcut: Bool {
+        get { UserDefaults.standard.bool(forKey: "cycleShortcut") }
+        set { UserDefaults.standard.set(newValue, forKey: "cycleShortcut") }
+    }
+
     /// Shortcuts for the "Replacement App" menu. Native apps only if installed.
     static let predefinedApps: [(name: String, target: String)] = [
         (name: "Spotify", target: "/Applications/Spotify.app"),

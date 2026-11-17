@@ -81,6 +81,25 @@ there's no separate install. It runs once as a long-lived background process
 in memory, so a media key press only reads an already-current flag — no
 subprocess spawned on the key-press path.
 
+### Choosing the target app
+
+By default Now Playing decides who gets the keys. With several players
+running you can pin one: **Media Key Target** in the menu (or Settings) picks
+Spotify, VLC, Vox or Swinsian (whichever are installed). While one is picked,
+Music Router swallows play/next/previous and sends them to that app through
+AppleScript, whatever owns Now Playing, launching it first if it isn't
+running. The optional shortcut **⌃⌥⌘M** (off by default, a checkbox in the
+same submenu) cycles Automatic → each running player → Automatic and flashes
+the name next to the menu bar icon. It uses a plain global hotkey, so it needs
+no extra permission.
+
+Limits: MediaRemote only reports and controls one Now Playing app, so this
+works for scriptable native apps only, which is why the list is a short
+allowlist. TIDAL has no AppleScript dictionary: it appears as "launch only"
+and, if picked, is just opened (instead of the replacement) when nothing is
+playing. Browser tabs can't be targeted. The first key sent to an app
+triggers macOS's Automation prompt for it.
+
 ### Resuming the last player
 
 The adapter's stream also says *which* app is playing. Music Router remembers
@@ -157,6 +176,8 @@ Click the note icon for:
 
 - **Enabled** — toggle both interception mechanisms on/off. Remembered
   across relaunches.
+- **Media Key Target** — pin the player that gets the media keys (or
+  Automatic), and enable the ⌃⌥⌘M cycle shortcut; see above.
 - **Resume Last Player** — with nothing playing, the play key resumes the
   last app that played, if still running and scriptable; see above.
 - **Replacement App** — a curated shortlist (Spotify, TIDAL, VLC, YouTube
@@ -241,6 +262,17 @@ other apps are denied unless the `com.apple.security.automation.apple-events`
 entitlement is present — `scripts/build-app.sh` already applies
 `Resources/MusicRouter.entitlements`, so only the identity and `--options
 runtime` need adding.
+
+## Compared to noTunes
+
+Same Music-blocking approach, plus: media keys intercepted before macOS can
+launch Music, no flash for that trigger; media-key control of the replacement
+(not just launching it); Now Playing awareness so keys for an already-playing
+app, browser tab included, are left alone; a bundled MediaRemote adapter with a
+CoreAudio fallback and a visible status; resuming the last player; pinning one
+of several players as the key target; settings window, login item, permission
+reset and debug log. noTunes is simpler and needs no permissions beyond
+launching; Music Router needs Input Monitoring and Accessibility for the key tap.
 
 ## Third-party code
 
