@@ -6,7 +6,12 @@ actually get them.
 
 [More Drumandbytes projects](https://drumandbytes.com/projects/?ref=music-router-readme)
 
-<img src="docs/about.png" alt="Music Router About window, version 0.4.3" width="295">
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/menu-dark.png">
+  <img src="docs/img/menu-light.png" alt="Music Router menu: Enabled, Replacement App, Media Key Target, Settings, permission status, About, Help, Quit" width="330">
+</picture>
+</p>
 
 Built as a more functional, actively-maintained replacement for
 [noTunes](https://github.com/tombonez/noTunes), whose Music-blocking approach
@@ -62,12 +67,32 @@ grant and its status afterwards.
 
 ## Use
 
-<img src="docs/menu.png" alt="Music Router menu: Enabled, Replacement App, Media Key Target, Settings, permission rows, About, Help, Quit" width="532">
-
 Click the note icon: **Enabled**, **Replacement App** (a shortlist, any local
 app, a web player, or block only), **Media Key Target**, **Settings…** (⌘,),
 the two permission rows, **About** and **Help**. Everything else (resume last
 player, the shortcut, launch at login, logging) is in Settings.
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/settings-dark.png">
+  <img src="docs/img/settings-light.png" alt="Music Router Settings: routing, media key target, general, permissions and Now Playing detection" width="400">
+</picture>
+</p>
+
+With the optional shortcut on, ⌃⌥⌘M cycles which player gets the media keys and
+shows a short message:
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/toast-dark-spotify.png">
+  <img src="docs/img/toast-light-spotify.png" alt="Toast: Media keys, Spotify" width="168">
+</picture>
+&nbsp;&nbsp;
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/toast-dark-automatic.png">
+  <img src="docs/img/toast-light-automatic.png" alt="Toast: Media keys, Automatic" width="197">
+</picture>
+</p>
 
 ## Documentation
 
