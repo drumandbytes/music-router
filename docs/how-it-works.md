@@ -13,8 +13,13 @@ Music.app can be launched through paths that need different fixes:
   Handoff from iPhone, Siri "play some music"), which don't route through a
   key event and have no public veto hook. This watches
   `NSWorkspace.didLaunchApplicationNotification` and force-terminates
-  Music/iTunes immediately if it launches, same approach noTunes uses. This is
-  a real, permanent limitation, not a bug to eventually fix.
+  Music/iTunes immediately if it launches, same approach noTunes uses. It's
+  reactive by design: Music.app is on the sealed, SIP-protected system volume,
+  so there's nothing to remove, rename or lock down, and no public hook to veto
+  another app's launch. Quitting it on launch is the approach that works for
+  every trigger without disabling system protections, and the brief flash for
+  non-key launches is the price. This is a real, permanent limitation, not a bug
+  to eventually fix.
 
 ## Routing the keys
 
