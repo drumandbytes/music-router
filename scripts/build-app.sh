@@ -22,6 +22,7 @@ cp "Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
 echo "Building MediaRemoteAdapter.framework..."
 scripts/build-adapter.sh "$BUNDLE/Contents/Frameworks"
 cp third_party/mediaremote-adapter/bin/mediaremote-adapter.pl "$BUNDLE/Contents/Resources/"
+cp scripts/musicrouter-media "$BUNDLE/Contents/Resources/musicrouter-media"
 cp third_party/mediaremote-adapter/LICENSE "$BUNDLE/Contents/Resources/mediaremote-adapter-LICENSE"
 
 PLIST="$BUNDLE/Contents/Info.plist"
