@@ -81,6 +81,23 @@ there's no separate install. It runs once as a long-lived background process
 in memory, so a media key press only reads an already-current flag — no
 subprocess spawned on the key-press path.
 
+### When detection fails
+
+If the adapter can't start or stops answering (a macOS update broke
+MediaRemote access, `/usr/bin/perl` is missing, the build lacks the bundled
+framework), the app keeps working: Music is still blocked and media keys are
+still routed. It falls back to a public CoreAudio check — "is any process
+driving the default output device?" — in place of Now Playing. That's coarser:
+a paused player isn't detected (the key then goes to the replacement), and
+unrelated audio such as a call counts as "playing" (the key passes through
+to macOS). The adapter is relaunched with backoff and takes over again as
+soon as it reports data. A stalled adapter is caught too: the stream only
+prints on change, so if it claims nothing is playing while audio keeps running
+for ~15 s, the app asks the adapter once (`get`); if that names a player, the
+stream is restarted and the fallback is used meanwhile. **Settings → Now Playing detection** shows
+Working / Starting / Unavailable with the reason. A noTunes-style app with no
+Now Playing check at all has no equivalent.
+
 ## Building
 
 No Xcode required — just the Xcode Command Line Tools (`xcode-select --install`),
