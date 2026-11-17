@@ -1,11 +1,9 @@
 import Foundation
 
-/// Tracks whether anything owns Now Playing (native app or browser tab) via
-/// the vendored mediaremote-adapter (third_party/mediaremote-adapter, BSD-3).
-/// MediaRemote only answers Apple-signed processes, so we run the adapter's
-/// perl script under /usr/bin/perl (com.apple.perl5), which dlopens the
-/// bundled framework. One long-lived `stream` keeps a cached flag, so key
-/// presses spawn nothing.
+/// Now Playing via the vendored mediaremote-adapter. MediaRemote only answers
+/// Apple-signed processes, so its perl script runs under /usr/bin/perl
+/// (com.apple.perl5) and dlopens the bundled framework. One long-lived `stream`
+/// keeps a cached flag; key presses spawn nothing.
 final class NowPlayingObserver {
     enum Health: Equatable {
         /// Adapter launched, no data yet.
@@ -38,8 +36,7 @@ final class NowPlayingObserver {
         }
     }
 
-    /// Defaults are the production wiring; tests inject a fake perl/script and
-    /// short timers.
+    /// Tests inject a fake perl/script and short timers.
     init(
         perl: String = NowPlayingObserver.perlPath,
         adapter: (script: String, framework: String)? = NowPlayingObserver.adapterPaths(),
@@ -77,16 +74,13 @@ final class NowPlayingObserver {
         return (script.path, framework.path)
     }
 
-    /// Adapter state when it's healthy, otherwise the CoreAudio fallback
-    /// (see `AudioActivity`). Never blocks: both paths are a cached flag or a
-    /// couple of property reads.
+    /// Adapter state when healthy, else the CoreAudio fallback. Both are cheap enough for the key path.
     var isSomethingOpen: Bool {
         if case .ok = health { return adapterSaysOpen }
         return audioProbe()
     }
 
-    /// Bundle ID of the last app the adapter reported as actively playing.
-    /// In-memory only; nil until something plays after launch.
+    /// Last app reported as playing; in-memory, nil until something plays after launch.
     private(set) var lastPlayingBundleID: String?
 
     private var adapterSaysOpen = false
@@ -170,9 +164,8 @@ final class NowPlayingObserver {
         health = .failed(reason)
     }
 
-    /// The adapter prints a snapshot as soon as it starts, even with nothing
-    /// playing. No line within the interval means it can't reach MediaRemote
-    /// (macOS update, entitlement change), so fall back until data shows up.
+    /// The adapter prints a snapshot right away, even when idle; silence means it
+    /// can't reach MediaRemote (macOS update, entitlements). Fall back until data shows up.
     private func armWatchdog() {
         cancelWatchdog()
         let item = DispatchWorkItem { [weak self] in
@@ -185,12 +178,10 @@ final class NowPlayingObserver {
 
     // MARK: stale-stream detection
 
-    /// The stream only prints on change, so a stalled adapter looks like
-    /// "nothing playing" forever. If it says nothing is open while audio keeps
-    /// running, ask the adapter once (`get`, independent of the stream): a
-    /// player in the answer means the stream is stale, so restart it and use
-    /// the audio fallback meanwhile. Unrelated audio (a call) just gets a
-    /// cooldown, since `get` agrees with the stream.
+    /// The stream only prints on change, so a stalled adapter reads as "nothing
+    /// playing" forever. If it says so while audio runs, ask once via `get`
+    /// (independent of the stream): a player in the answer means the stream is
+    /// stale, so restart it. Unrelated audio (a call) just earns a cooldown.
     private func startSyncTimer() {
         stopSyncTimer()
         syncTimer = Timer.scheduledTimer(withTimeInterval: syncCheckInterval, repeats: true) { [weak self] _ in

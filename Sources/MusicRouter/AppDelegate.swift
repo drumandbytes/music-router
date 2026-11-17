@@ -65,7 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    /// Decides whether `MediaKeyTap` swallows the event, and launches/controls the replacement if so.
     private func shouldSwallow(_ key: MediaKeyTap.MediaKey, isPressed: Bool) -> Bool {
         // A chosen scriptable player always gets the keys, whatever owns Now Playing.
         if let target = Self.driveTarget(selected: Config.targetApp, isScriptable: TargetApps.isScriptable) {
@@ -92,23 +91,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return swallow
     }
 
-    /// Swallow (and redirect) only when nothing owns Now Playing; otherwise let
-    /// macOS route it. Releases mirror the press so no stray key-up leaks.
+    /// Releases mirror the press so no stray key-up leaks.
     static func decideSwallow(isPressed: Bool, isSomethingOpen: Bool, lastKeySwallowed: Bool) -> Bool {
         guard isPressed else { return lastKeySwallowed }
         return !isSomethingOpen
     }
 
-    /// The selected target when we can actually control it. A target without a
-    /// dictionary (TIDAL) can't take keys, so it doesn't intercept; it's only
-    /// launched when nothing plays (see `handleMediaKey`).
+    /// TIDAL (no dictionary) can't take keys, so it never intercepts; see `handleMediaKey`.
     static func driveTarget(selected: String?, isScriptable: (String) -> Bool) -> String? {
         guard let selected, isScriptable(selected) else { return nil }
         return selected
     }
 
-    /// Sends to the target if running; otherwise launches it by path (which
-    /// AppleScript does implicitly) so the first press starts playback.
+    /// Not running: launch by path (AppleScript does it implicitly) so the first press plays.
     private func sendToTarget(_ key: MediaKeyTap.MediaKey, bundleID: String) {
         if TargetApps.isRunning(bundleID) {
             let sent = AppleScriptRemote.send(key, toBundleID: bundleID)
@@ -120,8 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// App to resume instead of the replacement: the last one that played, if
-    /// the setting is on, it's still running, and it isn't Music or ourselves.
+    /// Last player to resume instead of the replacement; never Music or ourselves.
     static func resumeTarget(
         enabled: Bool,
         lastPlaying: String?,
@@ -151,8 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.open(url)
             return
         }
-        // nothing playing: launch the replacement, AppleScript-forcing play
-        // where it can; plain open for web players and unscriptable apps
+        // AppleScript forces play where it can; web players and unscriptable apps just open
         if let replacement = Config.replacement,
            !Config.isWebURL(replacement),
            AppleScriptRemote.send(key, toAppAtPath: replacement) {
@@ -161,8 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Config.openReplacement()
     }
 
-    /// Registers the configured cycle shortcut; re-run when it or the toggle
-    /// changes. `false` = enabled but couldn't register (usually taken by another app).
+    /// `false` = enabled but couldn't register (usually taken by another app).
     @discardableResult
     func applyCycleShortcut() -> Bool {
         cycleHotKey?.unregister()

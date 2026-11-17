@@ -7,7 +7,7 @@ struct DialogSpec {
     struct Field {
         var placeholder: String
         var initial: String = ""
-        /// An error message to show inline, or `nil` if the text is acceptable.
+        /// Inline error, or `nil` if acceptable.
         var validate: (String) -> String?
     }
 

@@ -1,10 +1,9 @@
 name: Adapter update check
 
-# Weekly: if ungive/mediaremote-adapter has a newer release than the vendored
-# copy, open a DRAFT PR that swaps it in. Draft on purpose: the org's auto-merge
-# treats a dnb-robot PR that leaves the release-please manifest alone as a
-# "patch bump", so a ready PR would merge on green CI without anyone trying the
-# new adapter against macOS. CI only proves it builds.
+# Weekly: opens a DRAFT PR when ungive/mediaremote-adapter has a newer release.
+# Draft on purpose: auto-merge counts a dnb-robot PR that leaves the release-please
+# manifest alone as a patch bump, and CI only proves it compiles, so someone has
+# to try the new adapter on macOS first.
 
 on:
   schedule:
