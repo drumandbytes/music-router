@@ -1,0 +1,51 @@
+#!/bin/bash
+# Now Playing CLI on top of the adapter bundled in MusicRouter.app, so scripts
+# (SketchyBar, Hammerspoon, ...) don't need a separate media-control install.
+# Installed as MusicRouter.app/Contents/Resources/musicrouter-media.
+set -euo pipefail
+
+self=$0
+while [ -L "$self" ]; do
+  target=$(readlink "$self")
+  case $target in /*) self=$target ;; *) self=$(dirname "$self")/$target ;; esac
+done
+here=$(cd "$(dirname "$self")" && pwd)
+framework="$here/../Frameworks/MediaRemoteAdapter.framework"
+script="$here/mediaremote-adapter.pl"
+
+usage() {
+  cat <<'USAGE'
+Usage: musicrouter-media <command>
+
+  stream [opts]    JSON per change (adapter `stream`, default --no-diff --no-artwork)
+  get              current state as JSON, or null when nothing is loaded
+  play | pause | toggle | stop | next | previous
+                   control the Now Playing app (aliases: toggle-play-pause,
+                   next-track, previous-track)
+USAGE
+}
+
+run() {
+  if [ -n "${MUSICROUTER_MEDIA_DRYRUN:-}" ]; then
+    printf '%s\n' "$*"
+    exit 0
+  fi
+  [ -r "$script" ] && [ -d "$framework" ] || { echo "musicrouter-media: adapter not found next to $self" >&2; exit 1; }
+  exec /usr/bin/perl "$script" "$framework" "$@"
+}
+
+[ $# -ge 1 ] || { usage >&2; exit 2; }
+cmd=$1
+shift
+case $cmd in
+  stream) run stream --no-diff --no-artwork "$@" ;;
+  get) run get --no-artwork "$@" ;;
+  play) run send 0 ;;
+  pause) run send 1 ;;
+  toggle | toggle-play-pause) run send 2 ;;
+  stop) run send 3 ;;
+  next | next-track) run send 4 ;;
+  previous | previous-track) run send 5 ;;
+  -h | --help | help) usage ;;
+  *) echo "musicrouter-media: unknown command '$cmd'" >&2; usage >&2; exit 2 ;;
+esac
