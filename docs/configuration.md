@@ -2,7 +2,12 @@
 
 ## Menu bar
 
-<img src="menu.png" alt="Music Router menu: Enabled, Replacement App, Media Key Target, Settings, permission rows, About, Help, Quit" width="532">
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/menu-dark.png">
+  <img src="img/menu-light.png" alt="Music Router menu: Enabled, Replacement App, Media Key Target, Settings, permission status, About, Help, Quit" width="330">
+</picture>
+</p>
 
 Click the note icon for the essentials:
 
@@ -21,6 +26,13 @@ Click the note icon for the essentials:
 
 ## Settings
 
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/settings-dark.png">
+  <img src="img/settings-light.png" alt="Music Router Settings" width="400">
+</picture>
+</p>
+
 Settings (⌘, or **Settings…**) has the same options plus the rest:
 
 - **Routing**: Enabled, the replacement app, **Resume last player**.
@@ -33,9 +45,30 @@ Settings (⌘, or **Settings…**) has the same options plus the rest:
   them (see [Development](development.md#signing) for why a grant goes stale).
 - **Now Playing detection**: Working, Starting or Unavailable with the reason.
 
+**Reset Permissions…** asks first:
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/dialog-dark.png">
+  <img src="img/dialog-light.png" alt="Reset Permissions confirmation sheet" width="460">
+</picture>
+</p>
+
 The menu bar icon stays hidden across launches. To get back, relaunch the app
 (even while it's already running: double-click it again in Finder) to open
 Settings and tick **Show menu bar icon**.
+
+## About
+
+**About** shows the version, links to the source and to the other Drumandbytes
+projects, and the licence notices:
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="img/about-dark.png">
+  <img src="img/about-light.png" alt="Music Router About window" width="340">
+</picture>
+</p>
 
 ## `defaults` keys
 
