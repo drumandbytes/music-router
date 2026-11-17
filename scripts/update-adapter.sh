@@ -1,8 +1,6 @@
 #!/bin/bash
-# Replaces third_party/mediaremote-adapter with upstream tag $1 (e.g. v0.7.8):
-# source, include, perl script and LICENSE (not the test client), then rewrites
-# VERSION and the version mentioned in the README. No git or network beyond the
-# clone; the caller (the adapter-update workflow, or you) commits.
+# Swaps third_party/mediaremote-adapter for upstream tag $1 (no test client) and
+# rewrites VERSION and the README's version. Doesn't commit.
 # Usage: scripts/update-adapter.sh <tag>
 set -euo pipefail
 

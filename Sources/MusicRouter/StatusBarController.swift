@@ -195,7 +195,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             .withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
     }
 
-    /// Small leading icons, matched by item so each item's construction stays unchanged.
     private func applyIcons(to menu: NSMenu) {
         let icons: [String: String] = [
             "Enabled": "power",

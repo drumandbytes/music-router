@@ -34,7 +34,6 @@ enum Config {
         set { UserDefaults.standard.set(newValue, forKey: "menuBarIconHidden") }
     }
 
-    /// Writes diagnostics to ~/Library/Logs/MusicRouter.log (see `DebugLog`).
     static var debugLogging: Bool {
         get { UserDefaults.standard.bool(forKey: "debugLogging") }
         set { UserDefaults.standard.set(newValue, forKey: "debugLogging") }
@@ -47,8 +46,7 @@ enum Config {
         set { UserDefaults.standard.set(newValue, forKey: "enabled") }
     }
 
-    /// When nothing is playing, resume the app that played last (if still
-    /// running and scriptable) instead of launching the replacement. Defaults to true.
+    /// Defaults to true.
     static var resumeLastPlayer: Bool {
         get { UserDefaults.standard.object(forKey: "resumeLastPlayer") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "resumeLastPlayer") }
@@ -67,8 +65,7 @@ enum Config {
         }
     }
 
-    /// Global shortcut that cycles `targetApp`. Defaults to ⌃⌥⌘M; an invalid
-    /// or partial stored value falls back to the default.
+    /// Invalid or partial stored values fall back to ⌃⌥⌘M.
     static var cycleShortcutBinding: Shortcut {
         get {
             let d = UserDefaults.standard
@@ -92,13 +89,13 @@ enum Config {
         }
     }
 
-    /// On-screen message when the target changes via the shortcut. Defaults to true.
+    /// Defaults to true.
     static var showTargetToast: Bool {
         get { UserDefaults.standard.object(forKey: "showTargetToast") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "showTargetToast") }
     }
 
-    /// The shortcut cycles `targetApp` through the running players. Off by default.
+    /// Off by default.
     static var cycleShortcut: Bool {
         get { UserDefaults.standard.bool(forKey: "cycleShortcut") }
         set { UserDefaults.standard.set(newValue, forKey: "cycleShortcut") }
@@ -114,7 +111,6 @@ enum Config {
         (name: "SoundCloud", target: "https://soundcloud.com/"),
     ]
 
-    /// Installed native apps + all web players, in `predefinedApps` order.
     static var availablePredefinedApps: [(name: String, target: String)] {
         predefinedApps.filter { isWebURL($0.target) || FileManager.default.fileExists(atPath: $0.target) }
     }
@@ -126,7 +122,7 @@ enum Config {
         return !FileManager.default.fileExists(atPath: replacement)
     }
 
-    /// Inline validation message for the Custom URL field; `nil` = acceptable.
+    /// `nil` = acceptable.
     static func urlError(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return "Enter a URL." }

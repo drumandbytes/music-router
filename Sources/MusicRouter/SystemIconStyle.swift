@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The macOS 26 "Icon & widget style" choice (Default / Dark / Clear / Tinted),
-/// read from the global `AppleIconAppearanceTheme` default, so in-app icon
-/// tiles can match the Dock.
+/// macOS 26 "Icon & widget style" (global `AppleIconAppearanceTheme` default),
+/// so in-app icon tiles can match the Dock.
 struct SystemIconStyle: Equatable {
     enum Kind: Equatable { case regular, clear, tinted }
 

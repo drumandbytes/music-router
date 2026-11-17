@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Rounded icon tile that follows the system icon style: colour, dark, clear
-/// glass or tinted (see `SystemIconStyle`).
+/// Icon tile following the system icon style (see `SystemIconStyle`).
 struct IconTile: View {
     let symbol: String
     let color: Color
