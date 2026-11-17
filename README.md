@@ -18,17 +18,43 @@ I wrote it because noTunes hadn't been updated for about 15 months (last commit
 August 2024, as of November 2026) and I wanted it to keep working on current
 macOS, with the media keys behaving too. I use Music Router myself every day.
 
+## What it does
+
+- **Blocks Music.app/iTunes** from launching: media keys are intercepted
+  before macOS can launch it (no flash), and anything else that launches it
+  (AirPlay, Handoff, Siri) is terminated immediately.
+- **Leaves alone what's already playing.** If any app or browser tab owns
+  Now Playing, the key goes straight through to it, exactly as without this
+  app.
+- **Starts something useful when nothing is playing**: the last app that
+  played (if still running and scriptable), otherwise your replacement app
+  (Spotify, TIDAL, VLC, a web player, any app), actually playing, not just
+  opened.
+- **Pin a media-key target** among several players (Spotify, VLC, Vox,
+  Swinsian) from the menu or with a ⌃⌥⌘M shortcut.
+- **Keeps working when Now Playing detection breaks**: it falls back to a
+  CoreAudio check, restarts the adapter and shows the state in Settings.
+- **No extra install for Now Playing**: the MediaRemote adapter is bundled,
+  and a small `musicrouter-media` command-line tool exposes it to scripts.
+- Menu bar icon (hideable), Settings window, launch at login, permission
+  reset and opt-in debug logging.
+
 ## Compared with similar tools
 
 - **[noTunes](https://github.com/tombonez/noTunes)** is the original, and
   Music Router reuses its Music-blocking approach. Its README describes
   blocking Music/iTunes and a menu bar toggle. Music Router adds the media-key
   interception (no launch-then-quit flash for key presses), a check for what is
-  already playing, a replacement app it can actually start playing, launch at
-  login and a settings window.
+  already playing (with a fallback when that check fails), a replacement app it
+  can actually start playing, resuming the last player, pinning one of several
+  players as the key target, launch at login and a settings window. noTunes is
+  simpler and needs no permissions beyond launching; Music Router needs Input
+  Monitoring and Accessibility for the key tap.
 - **[BeardedSpice](https://github.com/beardedspice/beardedspice)** does a
   different job: it lets the media keys control web players in Chrome or Safari
   tabs. It doesn't stop Music from launching, and its last release was in 2017.
+  Music Router doesn't control browser tabs itself; it lets macOS route the
+  keys to whichever tab owns Now Playing.
 
 ## How it works
 
@@ -47,14 +73,7 @@ that need different fixes:
   Music/iTunes immediately if it launches, same approach noTunes uses. This is
   a real, permanent limitation — not a bug to eventually fix.
 
-## Status
-
-Working: the two interception mechanisms above, a replacement app (a
-shortlist, any local app, a custom URL, or none), Launch at Login, a Settings
-window, permission reset and opt-in debug logging (see "Menu bar" below). The
-replacement can also be set from the command line with `defaults write
-dev.drumandbytes.musicrouter replacement <path-or-url>`, same convention as
-noTunes.
+## Routing the keys
 
 A media key press first checks whether something is *already* the system's
 Now Playing session — native app or a browser tab, anything using the Media
@@ -119,6 +138,25 @@ WebKit/Chromium helper process, which doesn't understand those AppleScript
 verbs, so they fall back to the replacement. The first send to an app
 triggers macOS's Automation permission prompt for it. Music/iTunes is never
 a target.
+
+### Command line
+
+The app bundles a small CLI over the same adapter, so scripts (a status bar,
+Hammerspoon) can read and control Now Playing without a separate
+`media-control` install:
+
+```bash
+/Applications/MusicRouter.app/Contents/Resources/musicrouter-media stream   # JSON per change
+/Applications/MusicRouter.app/Contents/Resources/musicrouter-media get      # JSON, or null
+/Applications/MusicRouter.app/Contents/Resources/musicrouter-media toggle   # also play|pause|stop|next|previous
+```
+
+`stream` and `get` print the adapter's JSON (`payload` with `title`, `artist`,
+`playing`, `bundleIdentifier`, …, artwork omitted). It runs its own adapter
+process, independent of the app's, so it works whether or not the app is
+running, as long as the bundle is installed. It follows symlinks, so
+`ln -s` it onto your `PATH` if you like. It reads and controls the system's
+single Now Playing app, like the media keys do.
 
 ### When detection fails
 
@@ -186,7 +224,7 @@ Click the note icon for:
   player, or **Block Only** for no redirect.
 - **Launch at Login** — via `SMAppService`, no manual System Settings step.
 - **Settings…** (⌘,) — a window with the same options, plus permission
-  status. The icon stays hidden across launches; to get back, relaunch the
+  status and the Now Playing detection status. The icon stays hidden across launches; to get back, relaunch the
   app (even while it's already running — double-click it again in Finder) to
   open the settings window and tick **Show menu bar icon**.
 - **Hide Menu Bar Icon** — hides the icon; see above for the way back.
@@ -197,10 +235,19 @@ Click the note icon for:
   relaunches the app so you can re-grant them. See "A note on signing" below
   for why a grant can go stale in the first place.
 
-The menu covers everything; `defaults write dev.drumandbytes.musicrouter
-replacement <path-or-url>` (and `defaults delete … replacement` for
-block-only) works too if you'd rather script it — e.g. from your own
-dotfiles setup.
+## Settings from the command line
+
+Everything in the menu is a plain `defaults` key in
+`dev.drumandbytes.musicrouter`, so it can be scripted (e.g. from dotfiles):
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `replacement` | string | App path or URL opened when nothing plays; delete for block-only |
+| `resumeLastPlayer` | bool | Resume the last playing app first (default `true`) |
+| `targetApp` | string | Bundle ID pinned as the media-key target; delete for automatic |
+| `cycleShortcut` | bool | ⌃⌥⌘M cycles the target (default `false`) |
+| `enabled` | bool | Interception on/off (default `true`) |
+| `debugLogging` | bool | Write `~/Library/Logs/MusicRouter.log` |
 
 ## Reporting a bug
 
@@ -222,15 +269,17 @@ artists, or window contents. It rotates at 2 MB, keeping one older file
 swift test
 ```
 
-Covers the pure, directly-testable pieces: `MediaKeyTap.decode`'s media-key
-bit-unpacking, `Config`'s persistence/URL-vs-path logic,
-`MusicLauncherGuard`'s bundle-ID matching, and `DebugLog`'s gating and
-rotation. CI prints a coverage summary (no external service); the
-untestable AppKit/event-tap code keeps the total low by design. Not attempting to test the
-`CGEventTap`/TCC machinery itself — that needs a real
-signed app, a real permission grant, and a real key press, none of which are
-practical in CI (see "A note on signing" below for how flaky that
-combination already is even by hand).
+Covers the pure and process-level pieces: `MediaKeyTap.decode`'s media-key
+bit-unpacking, `Config`'s persistence and defaults, `MusicLauncherGuard`'s
+bundle-ID matching, `DebugLog`'s gating and rotation, and `NowPlayingObserver`
+against a fake adapter process (healthy, silent, exiting, missing, stalled,
+recovering), plus target cycling, last-player selection and the
+`musicrouter-media` command mapping. CI prints a coverage summary (no external
+service); the untestable AppKit/event-tap code keeps the total low by design.
+Not attempting to test the `CGEventTap`/TCC machinery or the real MediaRemote
+adapter itself: that needs a real signed app, a real permission grant and a
+real key press or playing app, none of which are practical in CI (see "A note
+on signing" below for how flaky that combination already is even by hand).
 
 ## A note on signing
 
@@ -263,17 +312,6 @@ entitlement is present — `scripts/build-app.sh` already applies
 `Resources/MusicRouter.entitlements`, so only the identity and `--options
 runtime` need adding.
 
-## Compared to noTunes
-
-Same Music-blocking approach, plus: media keys intercepted before macOS can
-launch Music, no flash for that trigger; media-key control of the replacement
-(not just launching it); Now Playing awareness so keys for an already-playing
-app, browser tab included, are left alone; a bundled MediaRemote adapter with a
-CoreAudio fallback and a visible status; resuming the last player; pinning one
-of several players as the key target; settings window, login item, permission
-reset and debug log. noTunes is simpler and needs no permissions beyond
-launching; Music Router needs Input Monitoring and Accessibility for the key tap.
-
 ## Third-party code
 
 `third_party/mediaremote-adapter/` is an unmodified copy of
@@ -282,6 +320,19 @@ v0.7.7 (BSD 3-Clause, © 2025 Jonas van den Berg and contributors; license in
 `third_party/mediaremote-adapter/LICENSE`, also shipped inside the app).
 Only the test client source is omitted. To update, replace the directory
 from a newer tag and update `VERSION` in it.
+
+## Known limits
+
+- **Music launched by AirPlay, Handoff or Siri is killed after it starts**,
+  not prevented; there's no public hook to veto those launches.
+- **MediaRemote reports and controls one Now Playing app.** Targeting and
+  last-player resume work for scriptable native apps only; browser tabs get
+  the keys through macOS when they own Now Playing, but can't be targeted.
+- **Now Playing detection uses a private framework** through the adapter
+  technique and can break on a macOS update; the CoreAudio fallback then
+  applies (see "When detection fails").
+- **Ad-hoc signed**, so the one-time Gatekeeper prompt and signing-bound
+  permissions apply (see "A note on signing").
 
 ## How it was made
 
