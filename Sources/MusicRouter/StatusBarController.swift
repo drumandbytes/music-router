@@ -155,7 +155,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // Resetting when already granted is harmless.
         let permissionsItem = NSMenuItem(title: "Reset Permissions…", action: #selector(resetPermissions), keyEquivalent: "")
         permissionsItem.target = self
-        permissionsItem.image = Self.symbol("lock.rotation")
+        permissionsItem.setIcon(Self.symbol("lock.rotation"))
         menu.addItem(permissionsItem)
         self.permissionsItem = permissionsItem
 
@@ -212,7 +212,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             "Quit Music Router": "xmark.circle",
         ]
         for item in menu.items {
-            if let name = icons[item.title] { item.image = Self.symbol(name) }
+            if let name = icons[item.title] { item.setIcon(Self.symbol(name)) }
         }
     }
 
@@ -229,8 +229,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         replacementItem?.submenu = buildReplacementMenu()
         targetItem?.submenu = buildTargetMenu()
 
-        inputMonitoringItem?.image = Self.statusSymbol(granted: CGPreflightListenEventAccess())
-        accessibilityItem?.image = Self.statusSymbol(granted: AXIsProcessTrusted())
+        inputMonitoringItem?.setIcon(Self.statusSymbol(granted: CGPreflightListenEventAccess()))
+        accessibilityItem?.setIcon(Self.statusSymbol(granted: AXIsProcessTrusted()))
     }
 
     private static func statusSymbol(granted: Bool) -> NSImage? {
@@ -260,7 +260,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let auto = NSMenuItem(title: "Automatic (Now Playing)", action: #selector(selectTarget(_:)), keyEquivalent: "")
         auto.target = self
-        auto.image = Self.symbol("sparkles")
+        auto.setIcon(Self.symbol("sparkles"))
         auto.state = current == nil ? .on : .off
         submenu.addItem(auto)
         submenu.addItem(.separator())
@@ -274,7 +274,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let item = NSMenuItem(title: title, action: #selector(selectTarget(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = id
-            if let url = TargetApps.appURL(for: id) { item.image = Self.appIcon(path: url.path) }
+            if let url = TargetApps.appURL(for: id) { item.setIcon(Self.appIcon(path: url.path)) }
             item.state = current == id ? .on : .off
             submenu.addItem(item)
         }
@@ -282,13 +282,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         submenu.addItem(.separator())
         let shortcut = NSMenuItem(title: "Cycle with \(Config.cycleShortcutBinding.display)", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
         shortcut.target = self
-        shortcut.image = Self.symbol("keyboard")
+        shortcut.setIcon(Self.symbol("keyboard"))
         shortcut.state = Config.cycleShortcut ? .on : .off
         submenu.addItem(shortcut)
 
         let toast = NSMenuItem(title: "Show Message on Change", action: #selector(toggleTargetToast(_:)), keyEquivalent: "")
         toast.target = self
-        toast.image = Self.symbol("bubble.left")
+        toast.setIcon(Self.symbol("bubble.left"))
         toast.state = Config.showTargetToast ? .on : .off
         submenu.addItem(toast)
         return submenu
@@ -326,7 +326,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         blockOnlyItem.target = self
-        blockOnlyItem.image = Self.symbol("nosign")
+        blockOnlyItem.setIcon(Self.symbol("nosign"))
         blockOnlyItem.state = current == nil ? .on : .off
         submenu.addItem(blockOnlyItem)
 
@@ -342,7 +342,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
             item.target = self
             item.representedObject = app.target
-            item.image = Config.isWebURL(app.target) ? Self.symbol("globe") : Self.appIcon(path: app.target)
+            item.setIcon(Config.isWebURL(app.target) ? Self.symbol("globe") : Self.appIcon(path: app.target))
             item.state = current == app.target ? .on : .off
             submenu.addItem(item)
         }
@@ -365,7 +365,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         chooseItem.target = self
-        chooseItem.image = Self.symbol("folder")
+        chooseItem.setIcon(Self.symbol("folder"))
         submenu.addItem(chooseItem)
 
         let customURLItem = NSMenuItem(
@@ -374,7 +374,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         customURLItem.target = self
-        customURLItem.image = Self.symbol("link")
+        customURLItem.setIcon(Self.symbol("link"))
         submenu.addItem(customURLItem)
 
         return submenu
