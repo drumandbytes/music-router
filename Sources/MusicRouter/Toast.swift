@@ -2,36 +2,37 @@ import AppKit
 
 /// Brief floating HUD for feedback that can't rely on the menu bar icon
 /// (hidden, or the menu bar is replaced by a tool such as SketchyBar).
+/// Liquid Glass on macOS 26+, a blur material before that.
 final class Toast {
     static let shared = Toast()
+
+    struct Content: Equatable {
+        let title: String
+        let subtitle: String
+        let bundleID: String?
+    }
 
     private var panel: NSPanel?
     private var hideWork: DispatchWorkItem?
 
-    static func targetMessage(name: String?) -> String {
-        "Media keys → \(name ?? "Automatic")"
+    /// `bundleID == nil` = Automatic.
+    static func targetContent(bundleID: String?) -> Content {
+        Content(
+            title: bundleID.map(TargetApps.name(for:)) ?? "Automatic",
+            subtitle: "Media keys",
+            bundleID: bundleID
+        )
     }
 
-    func show(_ text: String, duration: TimeInterval = 1.6) {
+    func show(_ content: Content, duration: TimeInterval = 1.6) {
         hideWork?.cancel()
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
-        let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: 20, weight: .semibold)
-        label.textColor = .labelColor
-        label.sizeToFit()
-
-        let size = NSSize(width: label.frame.width + 56, height: label.frame.height + 32)
-        let background = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        background.material = .hudWindow
-        background.state = .active
-        background.wantsLayer = true
-        background.layer?.cornerRadius = 16
-        background.layer?.masksToBounds = true
-        label.frame.origin = NSPoint(x: 28, y: 16)
-        background.addSubview(label)
-        panel.contentView = background
+        let body = makeBody(content)
+        let size = body.fittingSize
+        body.frame = NSRect(origin: .zero, size: size)
+        panel.contentView = wrapInGlass(body, size: size)
 
         // screen under the pointer, since that's where the user is looking
         let mouse = NSEvent.mouseLocation
@@ -53,6 +54,65 @@ final class Toast {
         }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
+    }
+
+    private func makeBody(_ content: Content) -> NSView {
+        let icon = NSImageView()
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.image = Self.icon(for: content.bundleID)
+        icon.contentTintColor = content.bundleID == nil ? .labelColor : nil
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            icon.widthAnchor.constraint(equalToConstant: 44),
+            icon.heightAnchor.constraint(equalToConstant: 44),
+        ])
+
+        let subtitle = NSTextField(labelWithString: content.subtitle.uppercased())
+        subtitle.font = .systemFont(ofSize: 10, weight: .semibold)
+        subtitle.textColor = .secondaryLabelColor
+        let title = NSTextField(labelWithString: content.title)
+        title.font = .systemFont(ofSize: 20, weight: .semibold)
+        title.textColor = .labelColor
+
+        let text = NSStackView(views: [subtitle, title])
+        text.orientation = .vertical
+        text.alignment = .leading
+        text.spacing = 1
+
+        let row = NSStackView(views: [icon, text])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 14
+        row.edgeInsets = NSEdgeInsets(top: 14, left: 18, bottom: 14, right: 26)
+        return row
+    }
+
+    private static func icon(for bundleID: String?) -> NSImage? {
+        if let bundleID, let url = TargetApps.appURL(for: bundleID) {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        let config = NSImage.SymbolConfiguration(pointSize: 30, weight: .regular)
+        return NSImage(systemSymbolName: "sparkles", accessibilityDescription: "Automatic")?
+            .withSymbolConfiguration(config)
+    }
+
+    private func wrapInGlass(_ body: NSView, size: NSSize) -> NSView {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: size))
+            glass.contentView = body
+            glass.cornerRadius = size.height / 2
+            return glass
+        }
+        #endif
+        let blur = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        blur.material = .hudWindow
+        blur.state = .active
+        blur.wantsLayer = true
+        blur.layer?.cornerRadius = size.height / 2
+        blur.layer?.masksToBounds = true
+        blur.addSubview(body)
+        return blur
     }
 
     private func makePanel() -> NSPanel {

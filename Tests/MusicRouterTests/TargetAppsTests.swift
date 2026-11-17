@@ -52,9 +52,11 @@ final class TargetAppsTests: XCTestCase {
         XCTAssertNil(AppDelegate.driveTarget(selected: nil, isScriptable: { _ in true }))
     }
 
-    func testToastMessage() {
-        XCTAssertEqual(Toast.targetMessage(name: "Spotify"), "Media keys → Spotify")
-        XCTAssertEqual(Toast.targetMessage(name: nil), "Media keys → Automatic")
+    func testToastContent() {
+        XCTAssertEqual(Toast.targetContent(bundleID: "com.spotify.client"),
+                       Toast.Content(title: "Spotify", subtitle: "Media keys", bundleID: "com.spotify.client"))
+        XCTAssertEqual(Toast.targetContent(bundleID: nil).title, "Automatic")
+        XCTAssertNil(Toast.targetContent(bundleID: nil).bundleID)
     }
 
     func testToastDefaultsOnAndPersistsOff() {

@@ -197,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DebugLog.shared.log("target cycled to \(next ?? "automatic")")
         statusBar?.flash(label)
         if Config.showTargetToast {
-            Toast.shared.show(Toast.targetMessage(name: next.map(TargetApps.name(for:))))
+            Toast.shared.show(Toast.targetContent(bundleID: next))
         }
     }
 
