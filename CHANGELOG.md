@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/drumandbytes/music-router/compare/v1.0.0...v1.1.0) (2026-11-17)
+
+
+### Features
+
+* **target:** remappable cycle shortcut ([#45](https://github.com/drumandbytes/music-router/issues/45)) ([7512cf2](https://github.com/drumandbytes/music-router/commit/7512cf2185a8328ec3edd64ed4c3875ae46bb75a))
+* **ui:** liquid-glass Settings, menu icons, dialogs, About and a Help page ([#47](https://github.com/drumandbytes/music-router/issues/47)) ([e2c4b39](https://github.com/drumandbytes/music-router/commit/e2c4b39b20d62fac029f9578e23ab847928e12cc))
+
 ## [1.0.0](https://github.com/drumandbytes/music-router/compare/v0.6.2...v1.0.0) (2026-11-17)
 
 
