@@ -17,6 +17,7 @@ final class SettingsModel: ObservableObject {
     @Published var cycleShortcut = Config.cycleShortcut
     @Published var cycleBinding = Config.cycleShortcutBinding
     @Published var shortcutError: String?
+    @Published var showTargetToast = Config.showTargetToast
     @Published var inputMonitoring = CGPreflightListenEventAccess()
     @Published var accessibility = AXIsProcessTrusted()
     @Published var nowPlayingHealth = NowPlayingObserver.Health.starting
@@ -45,6 +46,7 @@ final class SettingsModel: ObservableObject {
         targetApp = Config.targetApp
         cycleShortcut = Config.cycleShortcut
         cycleBinding = Config.cycleShortcutBinding
+        showTargetToast = Config.showTargetToast
         inputMonitoring = CGPreflightListenEventAccess()
         accessibility = AXIsProcessTrusted()
     }
@@ -151,6 +153,10 @@ struct SettingsView: View {
                         .disabled(model.cycleBinding == .defaultCycle)
                     }
                 }
+                Toggle("Show a message when the target changes", isOn: Binding(
+                    get: { model.showTargetToast },
+                    set: { Config.showTargetToast = $0; model.showTargetToast = $0 }
+                ))
                 if let error = model.shortcutError {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }

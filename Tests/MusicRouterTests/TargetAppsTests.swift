@@ -5,6 +5,7 @@ final class TargetAppsTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: "targetApp")
         UserDefaults.standard.removeObject(forKey: "cycleShortcut")
+        UserDefaults.standard.removeObject(forKey: "showTargetToast")
         super.tearDown()
     }
 
@@ -54,5 +55,11 @@ final class TargetAppsTests: XCTestCase {
     func testToastMessage() {
         XCTAssertEqual(Toast.targetMessage(name: "Spotify"), "Media keys → Spotify")
         XCTAssertEqual(Toast.targetMessage(name: nil), "Media keys → Automatic")
+    }
+
+    func testToastDefaultsOnAndPersistsOff() {
+        XCTAssertTrue(Config.showTargetToast)
+        Config.showTargetToast = false
+        XCTAssertFalse(Config.showTargetToast)
     }
 }

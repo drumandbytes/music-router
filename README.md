@@ -110,8 +110,8 @@ Music Router swallows play/next/previous and sends them to that app through
 AppleScript, whatever owns Now Playing, launching it first if it isn't
 running. The optional global shortcut (off by default, a checkbox in the same
 submenu or in Settings) cycles Automatic → each running player → Automatic and
-shows a brief on-screen message with the new target (and flashes it next to the
-menu bar icon). It defaults to **⌃⌥⌘M**; in
+shows a brief on-screen message with the new target (switch it off with **Show
+Message on Change** or in Settings) and flashes it next to the menu bar icon. It defaults to **⌃⌥⌘M**; in
 Settings, click the shortcut button and press a new combination to remap it
 (it needs ⌘, ⌥ or ⌃; Esc cancels, **Reset** restores the default). If another
 app already owns the combination, Settings says so. It uses a plain global
@@ -258,6 +258,7 @@ Everything in the menu is a plain `defaults` key in
 | `resumeLastPlayer` | bool | Resume the last playing app first (default `true`) |
 | `targetApp` | string | Bundle ID pinned as the media-key target; delete for automatic |
 | `cycleShortcut` | bool | The shortcut cycles the target (default `false`) |
+| `showTargetToast` | bool | On-screen message when the shortcut changes the target (default `true`) |
 | `cycleShortcutKeyCode`, `cycleShortcutModifiers`, `cycleShortcutKey` | int, int, string | Custom shortcut (Carbon key code and modifier mask, display label); delete all three for the ⌃⌥⌘M default |
 | `enabled` | bool | Interception on/off (default `true`) |
 | `debugLogging` | bool | Write `~/Library/Logs/MusicRouter.log` |

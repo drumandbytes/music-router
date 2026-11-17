@@ -92,6 +92,12 @@ enum Config {
         }
     }
 
+    /// On-screen message when the target changes via the shortcut. Defaults to true.
+    static var showTargetToast: Bool {
+        get { UserDefaults.standard.object(forKey: "showTargetToast") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "showTargetToast") }
+    }
+
     /// The shortcut cycles `targetApp` through the running players. Off by default.
     static var cycleShortcut: Bool {
         get { UserDefaults.standard.bool(forKey: "cycleShortcut") }

@@ -213,11 +213,20 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         shortcut.target = self
         shortcut.state = Config.cycleShortcut ? .on : .off
         submenu.addItem(shortcut)
+
+        let toast = NSMenuItem(title: "Show Message on Change", action: #selector(toggleTargetToast(_:)), keyEquivalent: "")
+        toast.target = self
+        toast.state = Config.showTargetToast ? .on : .off
+        submenu.addItem(toast)
         return submenu
     }
 
     @objc private func selectTarget(_ sender: NSMenuItem) {
         Config.targetApp = sender.representedObject as? String
+    }
+
+    @objc private func toggleTargetToast(_ sender: NSMenuItem) {
+        Config.showTargetToast.toggle()
     }
 
     @objc private func toggleCycleShortcut(_ sender: NSMenuItem) {
