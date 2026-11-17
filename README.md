@@ -110,7 +110,8 @@ Music Router swallows play/next/previous and sends them to that app through
 AppleScript, whatever owns Now Playing, launching it first if it isn't
 running. The optional global shortcut (off by default, a checkbox in the same
 submenu or in Settings) cycles Automatic → each running player → Automatic and
-flashes the name next to the menu bar icon. It defaults to **⌃⌥⌘M**; in
+shows a brief on-screen message with the new target (and flashes it next to the
+menu bar icon). It defaults to **⌃⌥⌘M**; in
 Settings, click the shortcut button and press a new combination to remap it
 (it needs ⌘, ⌥ or ⌃; Esc cancels, **Reset** restores the default). If another
 app already owns the combination, Settings says so. It uses a plain global

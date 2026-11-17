@@ -50,4 +50,9 @@ final class TargetAppsTests: XCTestCase {
         XCTAssertNil(AppDelegate.driveTarget(selected: "a.b", isScriptable: { _ in false }))
         XCTAssertNil(AppDelegate.driveTarget(selected: nil, isScriptable: { _ in true }))
     }
+
+    func testToastMessage() {
+        XCTAssertEqual(Toast.targetMessage(name: "Spotify"), "Media keys → Spotify")
+        XCTAssertEqual(Toast.targetMessage(name: nil), "Media keys → Automatic")
+    }
 }

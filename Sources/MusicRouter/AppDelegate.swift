@@ -196,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let label = next.map(TargetApps.name(for:)) ?? "Automatic"
         DebugLog.shared.log("target cycled to \(next ?? "automatic")")
         statusBar?.flash(label)
+        Toast.shared.show(Toast.targetMessage(name: next.map(TargetApps.name(for:))))
     }
 
     private func setEnabled(_ enabled: Bool) {
