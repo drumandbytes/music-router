@@ -146,16 +146,18 @@ Hammerspoon) can read and control Now Playing without a separate
 `media-control` install:
 
 ```bash
-/Applications/MusicRouter.app/Contents/Resources/musicrouter-media stream   # JSON per change
-/Applications/MusicRouter.app/Contents/Resources/musicrouter-media get      # JSON, or null
-/Applications/MusicRouter.app/Contents/Resources/musicrouter-media toggle   # also play|pause|stop|next|previous
+musicrouter-media stream   # JSON per change
+musicrouter-media get      # JSON, or null
+musicrouter-media toggle   # also play|pause|stop|next|previous
 ```
+
+(Installed with Homebrew it's on your `PATH`; otherwise it lives at
+`MusicRouter.app/Contents/Resources/musicrouter-media`.)
 
 `stream` and `get` print the adapter's JSON (`payload` with `title`, `artist`,
 `playing`, `bundleIdentifier`, …, artwork omitted). It runs its own adapter
 process, independent of the app's, so it works whether or not the app is
-running, as long as the bundle is installed. It follows symlinks, so
-`ln -s` it onto your `PATH` if you like. It reads and controls the system's
+running, as long as the bundle is installed. It follows symlinks. It reads and controls the system's
 single Now Playing app, like the media keys do.
 
 ### When detection fails
@@ -200,6 +202,11 @@ re-alerted every launch.
 ```bash
 brew install drumandbytes/tap/music-router
 ```
+
+No other dependencies: the MediaRemote adapter is bundled (earlier versions
+needed `brew install media-control`, which you can remove if nothing else
+uses it), and the cask also links the `musicrouter-media` command-line tool
+onto your `PATH` (see "Command line").
 
 Since it's ad-hoc signed (no Apple Developer Program enrollment — unnecessary
 for a personally-distributed tool), macOS will show the normal one-time
