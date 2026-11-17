@@ -1,0 +1,100 @@
+name: Adapter update check
+
+# Weekly: if ungive/mediaremote-adapter has a newer release than the vendored
+# copy, open a DRAFT PR that swaps it in. Draft on purpose: the org's auto-merge
+# treats a dnb-robot PR that leaves the release-please manifest alone as a
+# "patch bump", so a ready PR would merge on green CI without anyone trying the
+# new adapter against macOS. CI only proves it builds.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Compare with the latest upstream release
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current=$(sed -n 's/^tag: //p' third_party/mediaremote-adapter/VERSION)
+          latest=$(gh release view --repo ungive/mediaremote-adapter --json tagName --jq .tagName)
+          echo "vendored: $current, latest upstream: $latest"
+          {
+            echo "current=$current"
+            echo "latest=$latest"
+          } >> "$GITHUB_OUTPUT"
+
+          update=false
+          newest=$(printf '%s\n%s\n' "${current#v}" "${latest#v}" | sort -V | tail -n 1)
+          if [ "$current" != "$latest" ] && [ "$newest" = "${latest#v}" ]; then
+            if [ "$(gh pr list --state all --head "chore/mediaremote-adapter-$latest" --json number --jq length)" = "0" ]; then
+              update=true
+            else
+              echo "A PR for $latest already exists."
+            fi
+          fi
+          echo "update=$update" >> "$GITHUB_OUTPUT"
+
+      # dnb-robot, so the PR's CI runs (a GITHUB_TOKEN PR triggers no workflows)
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        if: steps.version.outputs.update == 'true'
+        id: app_token
+        with:
+          client-id: ${{ secrets.DNB_ROBOT_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open a draft PR
+        if: steps.version.outputs.update == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          CURRENT: ${{ steps.version.outputs.current }}
+          LATEST: ${{ steps.version.outputs.latest }}
+        run: |
+          set -euo pipefail
+          branch="chore/mediaremote-adapter-$LATEST"
+
+          git config user.name "dnb-robot[bot]"
+          git config user.email "4773076+dnb-robot[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+
+          scripts/update-adapter.sh "$LATEST"
+
+          git add -A
+          git commit -m "fix(adapter): update mediaremote-adapter to $LATEST"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+
+          cat > "$RUNNER_TEMP/body.md" <<BODY
+          Vendored mediaremote-adapter $CURRENT → $LATEST.
+
+          - Upstream changes: https://github.com/ungive/mediaremote-adapter/compare/$CURRENT...$LATEST
+          - Release notes: https://github.com/ungive/mediaremote-adapter/releases/tag/$LATEST
+
+          This is a **draft on purpose**. CI only proves the adapter compiles; try it on a Mac, then mark ready and merge:
+
+          - [ ] \`scripts/build-app.sh\`, open \`build/MusicRouter.app\`
+          - [ ] Settings → Now Playing detection says **Working**
+          - [ ] A native app (Spotify) and a browser tab show up as the owner (\`~/Library/Logs/MusicRouter.log\`)
+          - [ ] A media key passes through while something plays, and starts the replacement when nothing does
+          - [ ] \`musicrouter-media get\` returns the current track
+          - [ ] Still fine on the newest macOS you have (beta included)
+
+          Opened by the adapter-update workflow.
+          BODY
+
+          gh pr create --draft --base main --head "$branch" \
+            --title "fix(adapter): update mediaremote-adapter to $LATEST" \
+            --body-file "$RUNNER_TEMP/body.md"

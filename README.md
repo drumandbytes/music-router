@@ -337,8 +337,11 @@ runtime` need adding.
 [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter)
 v0.7.7 (BSD 3-Clause, © 2025 Jonas van den Berg and contributors; license in
 `third_party/mediaremote-adapter/LICENSE`, also shipped inside the app).
-Only the test client source is omitted. To update, replace the directory
-from a newer tag and update `VERSION` in it.
+Only the test client source is omitted. A weekly workflow
+(`.github/workflows/adapter-update.yml`) checks upstream for a newer release
+and opens a **draft** PR that runs `scripts/update-adapter.sh <tag>`; it stays
+a draft until the adapter has been tried on a Mac, because CI only proves it
+compiles. To update by hand, run `scripts/update-adapter.sh <tag>` yourself.
 
 ## Known limits
 
