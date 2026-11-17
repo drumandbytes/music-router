@@ -14,10 +14,16 @@ actually get them.
 </p>
 
 Built as a more functional, actively-maintained replacement for
-[noTunes](https://github.com/tombonez/noTunes), whose Music-blocking approach
-this reuses (it's the correct one), extended with a lower-level fix for the
-keyboard case and real playback control of the replacement app, not just
-launching it.
+[noTunes](https://github.com/tombonez/noTunes). It keeps noTunes' core idea:
+watch for Music.app/iTunes launching and quit it immediately. That's the right
+approach because it's the one that works without weakening the system. Music.app
+lives on macOS's sealed, SIP-protected system volume, so it can't be removed,
+renamed or locked down, and there is no public API to veto another app's launch.
+Reacting to the launch, however it was triggered (a media key, AirPlay, Handoff,
+Siri), covers every path. Music Router adds a lower-level fix for the keyboard
+case, so a media key never launches Music in the first place, and real playback
+control of the replacement app, not just launching it. See
+[How it works](docs/how-it-works.md#two-blocking-mechanisms).
 
 I wrote it because noTunes hadn't been updated for about 15 months (last commit
 August 2024, as of November 2026) and I wanted it to keep working on current
