@@ -15,7 +15,7 @@ half-grant them:
 The menu and **Settings → Permissions** show each grant with a green check or a
 red cross; click a row in the menu to open its pane. After an update, or if you
 rebuilt the app yourself, a grant can look enabled but be tied to the old
-signature. Use **Reset Permissions…** (menu or Settings): it clears both grants
+signature. Use **Reset Permissions…** (Settings): it clears both grants
 and relaunches the app so you can grant them again. By hand:
 
 ```bash
@@ -37,7 +37,7 @@ flash). That's a limit of macOS, not a bug.
 - With **Resume last player** on, "nothing is playing" first tries the app that
   played last, if it's still running and scriptable.
 - To always send the keys to one player, pick it under **Media Key Target**
-  (Spotify, VLC, Vox, Swinsian). Browser tabs can't be targeted.
+  (Spotify or VLC). Browser tabs can't be targeted.
 - A paused player normally still owns Now Playing, so the key resumes it
   through macOS.
 

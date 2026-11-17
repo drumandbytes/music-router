@@ -142,7 +142,7 @@ struct SettingsView: View {
                         Label {
                             Text(Self.targetLabel(id))
                         } icon: {
-                            Image(nsImage: Self.appIcon(bundleID: id))
+                            Image(nsImage: TargetApps.icon(bundleID: id))
                         }
                         .tag(id)
                     }
@@ -279,22 +279,9 @@ struct SettingsView: View {
             Label {
                 Text(title)
             } icon: {
-                Image(nsImage: Self.appIcon(path: target))
+                Image(nsImage: TargetApps.icon(path: target))
             }
         }
-    }
-
-    static func appIcon(path: String) -> NSImage {
-        let icon = NSWorkspace.shared.icon(forFile: path)
-        icon.size = NSSize(width: 16, height: 16)
-        return icon
-    }
-
-    static func appIcon(bundleID: String) -> NSImage {
-        guard let url = TargetApps.appURL(for: bundleID) else {
-            return NSImage(systemSymbolName: "app", accessibilityDescription: nil) ?? NSImage()
-        }
-        return appIcon(path: url.path)
     }
 }
 

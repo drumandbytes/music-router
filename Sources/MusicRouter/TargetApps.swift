@@ -12,8 +12,6 @@ enum TargetApps {
     static let known: [App] = [
         App(name: "Spotify", bundleID: "com.spotify.client"),
         App(name: "VLC", bundleID: "org.videolan.vlc"),
-        App(name: "Vox", bundleID: "com.coppertino.Vox"),
-        App(name: "Swinsian", bundleID: "com.swinsian.Swinsian"),
         // no AppleScript dictionary: can only be launched, not controlled
         App(name: "TIDAL", bundleID: "com.tidal.desktop"),
     ]
@@ -26,6 +24,19 @@ enum TargetApps {
 
     static func appURL(for bundleID: String) -> URL? {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+    }
+
+    /// 16 pt menu/picker icon.
+    static func icon(path: String) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        icon.size = NSSize(width: 16, height: 16)
+        return icon
+    }
+
+    static func icon(bundleID: String) -> NSImage {
+        appURL(for: bundleID).map { icon(path: $0.path) }
+            ?? NSImage(systemSymbolName: "app", accessibilityDescription: nil)
+            ?? NSImage()
     }
 
     static func isRunning(_ bundleID: String) -> Bool {

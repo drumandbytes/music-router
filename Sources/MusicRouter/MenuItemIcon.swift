@@ -9,11 +9,4 @@ extension NSMenuItem {
         guard icon != nil, responds(to: NSSelectorFromString("setPreferredImageVisibility:")) else { return }
         setValue(1, forKey: "preferredImageVisibility")
     }
-
-    /// 0 automatic, 1 visible, 2 hidden; `nil` before macOS 27.
-    var iconVisibilityRawValue: Int? {
-        responds(to: NSSelectorFromString("preferredImageVisibility"))
-            ? value(forKey: "preferredImageVisibility") as? Int
-            : nil
-    }
 }
