@@ -124,6 +124,8 @@ struct SettingsView: View {
             } footer: {
                 if case .failed = model.nowPlayingHealth, model.isEnabled {
                     Text("Using a basic check (is any audio playing?) instead. Music is still blocked and keys still routed, but a paused player is no longer detected.")
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

@@ -143,4 +143,46 @@ final class NowPlayingObserverTests: XCTestCase {
         XCTAssertEqual(SettingsView.statusText(.starting, enabled: true), "Starting…")
         XCTAssertEqual(SettingsView.statusText(.failed("x"), enabled: true), "Unavailable: x")
     }
+
+    // MARK: stale stream
+
+    private let emptySnapshot = #"echo '{"type":"data","diff":false,"payload":{}}'; sleep 30"#
+
+    private func staleObserver(snapshot: @escaping (@escaping (String??) -> Void) -> Void) throws -> NowPlayingObserver {
+        NowPlayingObserver(
+            perl: "/bin/sh", adapter: try script(emptySnapshot), audioProbe: { true },
+            watchdogInterval: 5, restartDelays: [30],
+            syncCheckInterval: 0.05, syncChecksBeforeVerify: 2, verifyCooldown: 30,
+            snapshot: snapshot
+        )
+    }
+
+    func testStaleStreamIsDetectedAndFallsBack() throws {
+        let observer = try staleObserver { $0("com.spotify.client") }
+        observer.start()
+        wait(for: observer) { $0 == .ok }
+        wait(for: observer) { $0 != .ok }
+        XCTAssertEqual(observer.health, .failed("adapter out of sync"))
+        XCTAssertTrue(observer.isSomethingOpen) // audio fallback
+        observer.stop()
+    }
+
+    func testUnrelatedAudioDoesNotFailAdapter() throws {
+        var calls = 0
+        let observer = try staleObserver { calls += 1; $0(.some(nil)) }
+        observer.start()
+        wait(for: observer) { $0 == .ok }
+        let end = Date().addingTimeInterval(0.6)
+        while Date() < end { RunLoop.current.run(until: Date().addingTimeInterval(0.02)) }
+        XCTAssertEqual(observer.health, .ok)
+        XCTAssertEqual(calls, 1) // cooldown stops re-probing
+        observer.stop()
+    }
+
+    func testParseSnapshot() {
+        XCTAssertEqual(NowPlayingObserver.parseSnapshot(Data("null\n".utf8)), .some(nil))
+        XCTAssertEqual(NowPlayingObserver.parseSnapshot(Data(#"{"bundleIdentifier":"a.b","title":"t"}"#.utf8)), .some("a.b"))
+        XCTAssertEqual(NowPlayingObserver.parseSnapshot(Data("{}".utf8)), .some(nil))
+        XCTAssertNil(NowPlayingObserver.parseSnapshot(Data("garbage".utf8)))
+    }
 }

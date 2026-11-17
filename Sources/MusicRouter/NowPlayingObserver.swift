@@ -23,6 +23,12 @@ final class NowPlayingObserver {
     private let audioProbe: () -> Bool
     private let watchdogInterval: TimeInterval
     private let restartDelays: [TimeInterval]
+    private let syncCheckInterval: TimeInterval
+    private let syncChecksBeforeVerify: Int
+    private let verifyCooldown: TimeInterval
+    /// One-shot `get` against the adapter, off the main thread. Outer nil =
+    /// couldn't run; inner nil = nothing is playing.
+    private let snapshot: (@escaping (String??) -> Void) -> Void
 
     private(set) var health: Health = .starting {
         didSet {
@@ -39,13 +45,24 @@ final class NowPlayingObserver {
         adapter: (script: String, framework: String)? = NowPlayingObserver.adapterPaths(),
         audioProbe: @escaping () -> Bool = AudioActivity.isOutputRunning,
         watchdogInterval: TimeInterval = 5,
-        restartDelays: [TimeInterval] = [2, 5, 15, 60]
+        restartDelays: [TimeInterval] = [2, 5, 15, 60],
+        syncCheckInterval: TimeInterval = 5,
+        syncChecksBeforeVerify: Int = 3,
+        verifyCooldown: TimeInterval = 60,
+        snapshot: ((@escaping (String??) -> Void) -> Void)? = nil
     ) {
         self.perl = perl
         self.adapter = adapter
         self.audioProbe = audioProbe
         self.watchdogInterval = watchdogInterval
         self.restartDelays = restartDelays
+        self.syncCheckInterval = syncCheckInterval
+        self.syncChecksBeforeVerify = syncChecksBeforeVerify
+        self.verifyCooldown = verifyCooldown
+        self.snapshot = snapshot ?? { completion in
+            guard let adapter else { return completion(nil) }
+            Self.runSnapshot(perl: perl, adapter: adapter, completion: completion)
+        }
     }
 
     /// Script + framework inside the app bundle, nil when not bundled
@@ -71,6 +88,11 @@ final class NowPlayingObserver {
     private var adapterSaysOpen = false
     private var consecutiveFailures = 0
     private var watchdog: DispatchWorkItem?
+    private var syncTimer: Timer?
+    private var disagreements = 0
+    private var verifying = false
+    private var nextVerify = Date.distantPast
+    private var forcedFailure: String?
     private var process: Process?
     private var pipe: Pipe?
     private var buffer = Data()
@@ -116,7 +138,9 @@ final class NowPlayingObserver {
                 self.cancelWatchdog()
                 self.lastBundleID = nil
                 self.adapterSaysOpen = false
-                self.fail("adapter exited (status \(finished.terminationStatus))")
+                self.stopSyncTimer()
+                self.fail(self.forcedFailure ?? "adapter exited (status \(finished.terminationStatus))")
+                self.forcedFailure = nil
                 self.scheduleRestart()
             }
         }
@@ -129,6 +153,7 @@ final class NowPlayingObserver {
             // keep a visible failure until real data arrives, so the status doesn't flap on each retry
             if case .failed = health {} else { health = .starting }
             armWatchdog()
+            startSyncTimer()
         } catch {
             NSLog("MusicRouter: failed to start mediaremote-adapter stream: \(error)")
             fail("could not start adapter: \(error.localizedDescription)")
@@ -154,6 +179,81 @@ final class NowPlayingObserver {
         DispatchQueue.main.asyncAfter(deadline: .now() + watchdogInterval, execute: item)
     }
 
+    // MARK: stale-stream detection
+
+    /// The stream only prints on change, so a stalled adapter looks like
+    /// "nothing playing" forever. If it says nothing is open while audio keeps
+    /// running, ask the adapter once (`get`, independent of the stream): a
+    /// player in the answer means the stream is stale, so restart it and use
+    /// the audio fallback meanwhile. Unrelated audio (a call) just gets a
+    /// cooldown, since `get` agrees with the stream.
+    private func startSyncTimer() {
+        stopSyncTimer()
+        syncTimer = Timer.scheduledTimer(withTimeInterval: syncCheckInterval, repeats: true) { [weak self] _ in
+            self?.syncCheck()
+        }
+    }
+
+    private func stopSyncTimer() {
+        syncTimer?.invalidate()
+        syncTimer = nil
+        disagreements = 0
+        verifying = false
+    }
+
+    private func syncCheck() {
+        guard case .ok = health, !adapterSaysOpen, audioProbe() else {
+            disagreements = 0
+            return
+        }
+        disagreements += 1
+        guard disagreements >= syncChecksBeforeVerify, !verifying, Date() >= nextVerify else { return }
+        verifying = true
+        let current = process
+        snapshot { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.verifying = false
+                self.nextVerify = Date().addingTimeInterval(self.verifyCooldown)
+                self.disagreements = 0
+                guard self.process === current, let current,
+                      case .some(.some(let owner)) = result else { return }
+                DebugLog.shared.log("stream stale: get reports owner=\(owner)")
+                self.forcedFailure = "adapter out of sync"
+                kill(current.processIdentifier, SIGKILL)
+            }
+        }
+    }
+
+    /// `get` prints `null` when nothing plays, else the payload dictionary.
+    static func parseSnapshot(_ data: Data) -> String?? {
+        struct Payload: Decodable { let bundleIdentifier: String? }
+        let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        if text == "null" { return .some(nil) }
+        guard let payload = try? JSONDecoder().decode(Payload.self, from: Data(text.utf8)) else { return nil }
+        return .some(payload.bundleIdentifier)
+    }
+
+    private static func runSnapshot(
+        perl: String,
+        adapter: (script: String, framework: String),
+        completion: @escaping (String??) -> Void
+    ) {
+        DispatchQueue.global(qos: .utility).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: perl)
+            task.arguments = [adapter.script, adapter.framework, "get", "--no-artwork"]
+            let out = Pipe()
+            task.standardOutput = out
+            task.standardError = FileHandle.nullDevice
+            do { try task.run() } catch { return completion(nil) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 5) { if task.isRunning { task.terminate() } }
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+            completion(task.terminationStatus == 0 ? parseSnapshot(data) : nil)
+        }
+    }
+
     private func cancelWatchdog() {
         watchdog?.cancel()
         watchdog = nil
@@ -172,11 +272,14 @@ final class NowPlayingObserver {
     func stop() {
         wantsRunning = false
         cancelWatchdog()
+        stopSyncTimer()
         adapterSaysOpen = false
         consecutiveFailures = 0
+        forcedFailure = nil
         health = .starting
         pipe?.fileHandleForReading.readabilityHandler = nil
-        process?.terminate()
+        // SIGKILL: a stalled (SIGSTOPped) child ignores SIGTERM and would leak
+        if let pid = process?.processIdentifier, pid > 0 { kill(pid, SIGKILL) }
         process = nil
         pipe = nil
         buffer.removeAll()

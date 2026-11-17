@@ -91,7 +91,10 @@ driving the default output device?" — in place of Now Playing. That's coarser:
 a paused player isn't detected (the key then goes to the replacement), and
 unrelated audio such as a call counts as "playing" (the key passes through
 to macOS). The adapter is relaunched with backoff and takes over again as
-soon as it reports data. **Settings → Now Playing detection** shows
+soon as it reports data. A stalled adapter is caught too: the stream only
+prints on change, so if it claims nothing is playing while audio keeps running
+for ~15 s, the app asks the adapter once (`get`); if that names a player, the
+stream is restarted and the fallback is used meanwhile. **Settings → Now Playing detection** shows
 Working / Starting / Unavailable with the reason. A noTunes-style app with no
 Now Playing check at all has no equivalent.
 
