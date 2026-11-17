@@ -5,6 +5,7 @@ final class TargetAppsTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: "targetApp")
         UserDefaults.standard.removeObject(forKey: "cycleShortcut")
+        UserDefaults.standard.removeObject(forKey: "showTargetToast")
         super.tearDown()
     }
 
@@ -49,5 +50,18 @@ final class TargetAppsTests: XCTestCase {
         XCTAssertEqual(AppDelegate.driveTarget(selected: "a.b", isScriptable: { _ in true }), "a.b")
         XCTAssertNil(AppDelegate.driveTarget(selected: "a.b", isScriptable: { _ in false }))
         XCTAssertNil(AppDelegate.driveTarget(selected: nil, isScriptable: { _ in true }))
+    }
+
+    func testToastContent() {
+        XCTAssertEqual(Toast.targetContent(bundleID: "com.spotify.client"),
+                       Toast.Content(title: "Spotify", subtitle: "Media keys", bundleID: "com.spotify.client"))
+        XCTAssertEqual(Toast.targetContent(bundleID: nil).title, "Automatic")
+        XCTAssertNil(Toast.targetContent(bundleID: nil).bundleID)
+    }
+
+    func testToastDefaultsOnAndPersistsOff() {
+        XCTAssertTrue(Config.showTargetToast)
+        Config.showTargetToast = false
+        XCTAssertFalse(Config.showTargetToast)
     }
 }

@@ -46,7 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBar.onToggle = { [weak self] enabled in
             self?.setEnabled(enabled)
         }
-        statusBar.onCycleShortcutChanged = { [weak self] in self?.applyCycleShortcut() }
+        statusBar.onCycleShortcutChanged = { [weak self] in self?.applyCycleShortcut() ?? true }
+        statusBar.onShortcutRecording = { [weak self] in self?.setShortcutRecording($0) }
         statusBar.nowPlayingHealth = { [weak self] in self?.nowPlayingObserver.health ?? .starting }
         self.statusBar = statusBar
     }
@@ -160,15 +161,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Config.openReplacement()
     }
 
-    /// ⌃⌥⌘M; re-run when the setting changes.
-    func applyCycleShortcut() {
+    /// Registers the configured cycle shortcut; re-run when it or the toggle
+    /// changes. `false` = enabled but couldn't register (usually taken by another app).
+    @discardableResult
+    func applyCycleShortcut() -> Bool {
         cycleHotKey?.unregister()
         cycleHotKey = nil
-        guard Config.cycleShortcut else { return }
-        cycleHotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_M), modifiers: UInt32(cmdKey | optionKey | controlKey)) { [weak self] in
+        guard Config.cycleShortcut else {
+            DebugLog.shared.log("cycle shortcut off")
+            return true
+        }
+        let shortcut = Config.cycleShortcutBinding
+        cycleHotKey = GlobalHotKey(keyCode: shortcut.keyCode, modifiers: shortcut.modifiers) { [weak self] in
             self?.cycleTarget()
         }
-        if cycleHotKey == nil { DebugLog.shared.log("cycle shortcut registration failed") }
+        DebugLog.shared.log("cycle shortcut \(shortcut.display) " + (cycleHotKey == nil ? "registration failed" : "registered"))
+        return cycleHotKey != nil
+    }
+
+    /// While the recorder listens, the current hotkey must not swallow the press.
+    private func setShortcutRecording(_ recording: Bool) {
+        DebugLog.shared.log("shortcut recording=\(recording)")
+        if recording {
+            cycleHotKey?.unregister()
+            cycleHotKey = nil
+        } else {
+            applyCycleShortcut()
+        }
     }
 
     private func cycleTarget() {
@@ -177,6 +196,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let label = next.map(TargetApps.name(for:)) ?? "Automatic"
         DebugLog.shared.log("target cycled to \(next ?? "automatic")")
         statusBar?.flash(label)
+        if Config.showTargetToast {
+            Toast.shared.show(Toast.targetContent(bundleID: next))
+        }
     }
 
     private func setEnabled(_ enabled: Bool) {

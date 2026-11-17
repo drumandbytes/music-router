@@ -18,10 +18,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         chooseURL: { [weak self] in self?.chooseCustomURL() },
         resetPermissions: { [weak self] in self?.resetPermissions() },
         nowPlayingHealth: { [weak self] in self?.nowPlayingHealth() ?? .starting },
-        cycleShortcutChanged: { [weak self] in self?.onCycleShortcutChanged?() }
+        cycleShortcutChanged: { [weak self] in self?.onCycleShortcutChanged?() ?? true },
+        shortcutRecording: { [weak self] in self?.onShortcutRecording?($0) }
     ))
     var onToggle: ((Bool) -> Void)?
-    var onCycleShortcutChanged: (() -> Void)?
+    var onCycleShortcutChanged: (() -> Bool)?
+    var onShortcutRecording: ((Bool) -> Void)?
     private var targetItem: NSMenuItem?
     private var flashWork: DispatchWorkItem?
     var nowPlayingHealth: () -> NowPlayingObserver.Health = { .starting }
@@ -207,10 +209,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
 
         submenu.addItem(.separator())
-        let shortcut = NSMenuItem(title: "Cycle with ⌃⌥⌘M", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
+        let shortcut = NSMenuItem(title: "Cycle with \(Config.cycleShortcutBinding.display)", action: #selector(toggleCycleShortcut(_:)), keyEquivalent: "")
         shortcut.target = self
         shortcut.state = Config.cycleShortcut ? .on : .off
         submenu.addItem(shortcut)
+
+        let toast = NSMenuItem(title: "Show Message on Change", action: #selector(toggleTargetToast(_:)), keyEquivalent: "")
+        toast.target = self
+        toast.state = Config.showTargetToast ? .on : .off
+        submenu.addItem(toast)
         return submenu
     }
 
@@ -218,9 +225,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         Config.targetApp = sender.representedObject as? String
     }
 
+    @objc private func toggleTargetToast(_ sender: NSMenuItem) {
+        Config.showTargetToast.toggle()
+    }
+
     @objc private func toggleCycleShortcut(_ sender: NSMenuItem) {
         Config.cycleShortcut.toggle()
-        onCycleShortcutChanged?()
+        _ = onCycleShortcutChanged?()
     }
 
     /// Brief status-bar label so a shortcut change is visible without opening the menu.
