@@ -12,6 +12,7 @@ final class SettingsModel: ObservableObject {
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published var showMenuBarIcon = !Config.menuBarIconHidden
     @Published var debugLogging = Config.debugLogging
+    @Published var resumeLastPlayer = Config.resumeLastPlayer
     @Published var inputMonitoring = CGPreflightListenEventAccess()
     @Published var accessibility = AXIsProcessTrusted()
     @Published var nowPlayingHealth = NowPlayingObserver.Health.starting
@@ -36,6 +37,7 @@ final class SettingsModel: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
         showMenuBarIcon = !Config.menuBarIconHidden
         debugLogging = Config.debugLogging
+        resumeLastPlayer = Config.resumeLastPlayer
         inputMonitoring = CGPreflightListenEventAccess()
         accessibility = AXIsProcessTrusted()
     }
@@ -81,6 +83,11 @@ struct SettingsView: View {
                         Text("\(label)\(Config.replacementIsMissing ? " (not found)" : "")").tag(current)
                     }
             }
+            Toggle("Resume last player", isOn: Binding(
+                get: { model.resumeLastPlayer },
+                set: { Config.resumeLastPlayer = $0; model.resumeLastPlayer = $0 }
+            ))
+            .help("With nothing playing, the play key resumes the app that played last (if it's still running and scriptable) instead of launching the replacement.")
             HStack {
                 Button("Choose App…") { actions.chooseApp(); model.refresh() }
                 Button("Custom URL…") { actions.chooseURL(); model.refresh() }

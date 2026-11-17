@@ -84,7 +84,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return !isSomethingOpen
     }
 
+    /// App to resume instead of the replacement: the last one that played, if
+    /// the setting is on, it's still running, and it isn't Music or ourselves.
+    static func resumeTarget(
+        enabled: Bool,
+        lastPlaying: String?,
+        isRunning: (String) -> Bool
+    ) -> String? {
+        guard enabled, let id = lastPlaying,
+              id != Bundle.main.bundleIdentifier,
+              !MusicLauncherGuard.shouldBlock(bundleID: id),
+              isRunning(id)
+        else { return nil }
+        return id
+    }
+
     private func handleMediaKey(_ key: MediaKeyTap.MediaKey) {
+        if let id = Self.resumeTarget(
+            enabled: Config.resumeLastPlayer,
+            lastPlaying: nowPlayingObserver.lastPlayingBundleID,
+            isRunning: { !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty }
+        ) {
+            let sent = AppleScriptRemote.send(key, toBundleID: id)
+            DebugLog.shared.log("resume lastPlaying=\(id) sent=\(sent)")
+            if sent { return }
+        }
         // nothing playing: launch the replacement, AppleScript-forcing play
         // where it can; plain open for web players and unscriptable apps
         if let replacement = Config.replacement,

@@ -9,7 +9,14 @@ final class ConfigTests: XCTestCase {
         Config.menuBarIconHidden = false
         // removed, not set, so the next test sees the default-true path
         UserDefaults.standard.removeObject(forKey: "enabled")
+        UserDefaults.standard.removeObject(forKey: "resumeLastPlayer")
         super.tearDown()
+    }
+
+    func testResumeLastPlayerDefaultsTrueAndPersistsFalse() {
+        XCTAssertTrue(Config.resumeLastPlayer)
+        Config.resumeLastPlayer = false
+        XCTAssertFalse(Config.resumeLastPlayer)
     }
 
     func testIsEnabledDefaultsTrueAndPersistsFalse() {

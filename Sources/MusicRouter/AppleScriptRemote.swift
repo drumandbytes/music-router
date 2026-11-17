@@ -18,7 +18,19 @@ enum AppleScriptRemote {
     /// briefly stall the menu if the target app is hung. Move to a
     /// background queue with a timeout if that's ever observed in practice.
     static func send(_ key: MediaKeyTap.MediaKey, toAppAtPath path: String) -> Bool {
-        let source = "tell application \"\(path)\" to \(verb(for: key))"
+        run("tell application \"\(path)\" to \(verb(for: key))")
+    }
+
+    /// Caller must have checked the app is running: this would launch it.
+    static func send(_ key: MediaKeyTap.MediaKey, toBundleID bundleID: String) -> Bool {
+        run(source(for: key, bundleID: bundleID))
+    }
+
+    static func source(for key: MediaKeyTap.MediaKey, bundleID: String) -> String {
+        "tell application id \"\(bundleID)\" to \(verb(for: key))"
+    }
+
+    private static func run(_ source: String) -> Bool {
         guard let script = NSAppleScript(source: source) else { return false }
         var error: NSDictionary?
         script.executeAndReturnError(&error)

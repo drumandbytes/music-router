@@ -185,4 +185,29 @@ final class NowPlayingObserverTests: XCTestCase {
         XCTAssertEqual(NowPlayingObserver.parseSnapshot(Data("{}".utf8)), .some(nil))
         XCTAssertNil(NowPlayingObserver.parseSnapshot(Data("garbage".utf8)))
     }
+
+    // MARK: last player
+
+    func testParseStateReadsPlaying() {
+        let playing = #"{"payload":{"bundleIdentifier":"com.spotify.client","playing":true}}"#
+        let paused = #"{"payload":{"bundleIdentifier":"com.spotify.client","playing":false}}"#
+        let none = #"{"payload":{}}"#
+        XCTAssertEqual(NowPlayingObserver.parseState(jsonLine: Data(playing.utf8)),
+                       .init(bundleID: "com.spotify.client", playing: true))
+        XCTAssertEqual(NowPlayingObserver.parseState(jsonLine: Data(paused.utf8))?.playing, false)
+        XCTAssertEqual(NowPlayingObserver.parseState(jsonLine: Data(none.utf8)), .init(bundleID: nil, playing: false))
+        XCTAssertNil(NowPlayingObserver.parseState(jsonLine: Data("nope".utf8)))
+    }
+
+    func testTracksLastPlayingNotPausedOwner() throws {
+        let playing = #"{"payload":{"bundleIdentifier":"com.spotify.client","playing":true}}"#
+        let paused = #"{"payload":{"bundleIdentifier":"org.videolan.vlc","playing":false}}"#
+        let none = #"{"payload":{}}"#
+        let observer = makeObserver(adapter: try script("echo '\(playing)'; echo '\(paused)'; echo '\(none)'; sleep 30"))
+        observer.start()
+        let end = Date().addingTimeInterval(1)
+        while Date() < end { RunLoop.current.run(until: Date().addingTimeInterval(0.02)) }
+        XCTAssertEqual(observer.lastPlayingBundleID, "com.spotify.client")
+        observer.stop()
+    }
 }

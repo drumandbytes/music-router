@@ -85,6 +85,10 @@ final class NowPlayingObserver {
         return audioProbe()
     }
 
+    /// Bundle ID of the last app the adapter reported as actively playing.
+    /// In-memory only; nil until something plays after launch.
+    private(set) var lastPlayingBundleID: String?
+
     private var adapterSaysOpen = false
     private var consecutiveFailures = 0
     private var watchdog: DispatchWorkItem?
@@ -291,7 +295,12 @@ final class NowPlayingObserver {
         while let newline = buffer.firstIndex(of: 0x0A) {
             let line = buffer.subdata(in: buffer.startIndex..<newline)
             buffer.removeSubrange(buffer.startIndex...newline)
-            if let bundleID = Self.parse(jsonLine: line) {
+            if let state = Self.parseState(jsonLine: line) {
+                let bundleID = state.bundleID
+                if state.playing, let bundleID, bundleID != lastPlayingBundleID {
+                    lastPlayingBundleID = bundleID
+                    DebugLog.shared.log("lastPlaying=\(bundleID)")
+                }
                 cancelWatchdog()
                 consecutiveFailures = 0
                 health = .ok
@@ -304,15 +313,28 @@ final class NowPlayingObserver {
         }
     }
 
-    /// Outer `nil` = unparseable line (caller keeps the last known state);
-    /// inner `nil` = parsed, nothing owns Now Playing.
-    static func parse(jsonLine: Data) -> String?? {
+    struct State: Equatable {
+        let bundleID: String?
+        let playing: Bool
+    }
+
+    /// `nil` = unparseable line (caller keeps the last known state).
+    static func parseState(jsonLine: Data) -> State? {
         struct StreamLine: Decodable {
-            struct Payload: Decodable { let bundleIdentifier: String? }
+            struct Payload: Decodable {
+                let bundleIdentifier: String?
+                let playing: Bool?
+            }
             let payload: Payload
         }
         guard let line = try? JSONDecoder().decode(StreamLine.self, from: jsonLine) else { return nil }
-        return .some(line.payload.bundleIdentifier)
+        return State(bundleID: line.payload.bundleIdentifier, playing: line.payload.playing ?? false)
+    }
+
+    /// Outer `nil` = unparseable line; inner `nil` = parsed, nothing owns Now Playing.
+    static func parse(jsonLine: Data) -> String?? {
+        guard let state = parseState(jsonLine: jsonLine) else { return nil }
+        return .some(state.bundleID)
     }
 
     static func hasNowPlayingApp(jsonLine: Data) -> Bool? {

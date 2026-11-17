@@ -10,6 +10,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private var replacementItem: NSMenuItem?
     private var permissionsItem: NSMenuItem?
     private var toggleItem: NSMenuItem?
+    private var resumeItem: NSMenuItem?
     private lazy var settings = SettingsWindowController(actions: SettingsActions(
         setEnabled: { [weak self] in self?.setEnabled($0) },
         setIconHidden: { [weak self] in self?.setIconHidden($0) },
@@ -69,6 +70,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         replacementItem.submenu = NSMenu()
         menu.addItem(replacementItem)
         self.replacementItem = replacementItem
+
+        let resumeItem = NSMenuItem(
+            title: "Resume Last Player",
+            action: #selector(toggleResumeLastPlayer),
+            keyEquivalent: ""
+        )
+        resumeItem.target = self
+        resumeItem.state = Config.resumeLastPlayer ? .on : .off
+        menu.addItem(resumeItem)
+        self.resumeItem = resumeItem
 
         let loginItem = NSMenuItem(
             title: "Launch at Login",
@@ -152,6 +163,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Refresh on open so grants and installs made while running show up.
     func menuWillOpen(_ menu: NSMenu) {
         toggleItem?.state = isEnabled ? .on : .off
+        resumeItem?.state = Config.resumeLastPlayer ? .on : .off
         replacementItem?.submenu = buildReplacementMenu()
 
         let inputMonitoring = CGPreflightListenEventAccess() ? "✓" : "✗"
@@ -240,6 +252,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
         LoginItem.toggle()
         sender.state = SMAppService.mainApp.status == .enabled ? .on : .off
+    }
+
+    @objc private func toggleResumeLastPlayer(_ sender: NSMenuItem) {
+        Config.resumeLastPlayer.toggle()
+        sender.state = Config.resumeLastPlayer ? .on : .off
     }
 
     @objc private func toggleDebugLogging(_ sender: NSMenuItem) {
