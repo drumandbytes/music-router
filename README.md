@@ -13,17 +13,15 @@ actually get them.
 </picture>
 </p>
 
-Built as a more functional, actively-maintained replacement for
-[noTunes](https://github.com/tombonez/noTunes). It keeps noTunes' core idea:
-watch for Music.app/iTunes launching and quit it immediately. That's the right
-approach because it's the one that works without weakening the system. Music.app
-lives on macOS's sealed, SIP-protected system volume, so it can't be removed,
-renamed or locked down, and there is no public API to veto another app's launch.
-Reacting to the launch, however it was triggered (a media key, AirPlay, Handoff,
-Siri), covers every path. Music Router adds a lower-level fix for the keyboard
-case, so a media key never launches Music in the first place, and real playback
-control of the replacement app, not just launching it. See
-[How it works](docs/how-it-works.md#two-blocking-mechanisms).
+A more functional, actively-maintained alternative to
+[noTunes](https://github.com/tombonez/noTunes). It stops Music.app by quitting it
+the instant it launches, the approach that works without weakening the system:
+Music.app lives on macOS's sealed, SIP-protected system volume, so it can't be
+removed, renamed or locked down, and there is no public API to veto another app's
+launch. Reacting to the launch covers every trigger (a media key, AirPlay,
+Handoff, Siri). On top of that, a lower-level fix means a media key never
+launches Music in the first place, and the replacement app is actually *played*,
+not just opened. See [How it works](docs/how-it-works.md#two-blocking-mechanisms).
 
 I wrote it because noTunes hadn't been updated for about 15 months (last commit
 August 2024, as of November 2026) and I wanted it to keep working on current
@@ -111,22 +109,29 @@ shows a short message:
 - **[Development](docs/development.md)**: building, testing, signing, third-party
   code and how the project is maintained and released.
 
-## Compared with similar tools
+## How it compares
 
-- **[noTunes](https://github.com/tombonez/noTunes)** is the original, and
-  Music Router reuses its Music-blocking approach. Its README describes
-  blocking Music/iTunes and a menu bar toggle. Music Router adds the media-key
-  interception (no launch-then-quit flash for key presses), a check for what is
-  already playing (with a fallback when that check fails), a replacement app it
-  can actually start playing, resuming the last player, pinning one of several
-  players as the key target, launch at login and a settings window. noTunes is
-  simpler and needs no permissions beyond launching; Music Router needs Input
-  Monitoring and Accessibility for the key tap.
-- **[BeardedSpice](https://github.com/beardedspice/beardedspice)** does a
-  different job: it lets the media keys control web players in Chrome or Safari
-  tabs. It doesn't stop Music from launching, and its last release was in 2017.
-  Music Router doesn't control browser tabs itself; it lets macOS route the
-  keys to whichever tab owns Now Playing.
+Quitting Music as it launches is an established technique. Music Router builds
+on it and goes further:
+
+- **Media keys never launch Music.** They're intercepted before macOS acts on
+  them, so there's no launch-then-quit flash for the most common trigger.
+- **Whatever is playing keeps the keys.** If an app or browser tab owns Now
+  Playing, the key goes straight to it, untouched.
+- **It starts the right thing.** With nothing playing, the last player resumes,
+  or your replacement app begins *playing*, not just opening. Or pin the player
+  that always gets the keys, with a remappable shortcut to switch.
+- **It keeps working when macOS changes.** If Now Playing detection breaks, it
+  falls back, recovers on its own and says so in Settings.
+- **Scriptable and configurable.** A Settings window, every option as a
+  `defaults` key, and a `musicrouter-media` command line for status bars and
+  scripts.
+
+The trade-off: intercepting keys needs **Input Monitoring** and
+**Accessibility** permission, which a simpler quit-on-launch app doesn't.
+Controlling web players in browser tabs is a different job, done by tools such as
+[BeardedSpice](https://github.com/beardedspice/beardedspice); Music Router
+leaves that to macOS and routes the keys to whichever tab owns Now Playing.
 
 ## Limits
 
