@@ -93,17 +93,27 @@ private struct DialogView: View {
 }
 
 enum Dialog {
-    @discardableResult
-    static func run(_ spec: DialogSpec) -> DialogResult {
+    /// Windows kept alive until their dialog finishes.
+    private static var open: [NSWindow] = []
+
+    /// Not modal on purpose: `runModal` opened from a SwiftUI button action (the
+    /// Settings window) left the dialog's own buttons dead. With a `parent` it
+    /// slides in as a sheet on that window; otherwise it's a floating window.
+    static func present(
+        _ spec: DialogSpec,
+        relativeTo parent: NSWindow? = nil,
+        completion: @escaping (DialogResult) -> Void
+    ) {
         // accessory app: activate or the dialog opens behind
         NSApp.activate(ignoringOtherApps: true)
 
-        var result = DialogResult(accepted: false, text: "")
         var window: NSWindow?
         let hosting = NSHostingController(rootView: DialogView(spec: spec) { outcome in
-            result = outcome
-            NSApp.stopModal()
-            window?.orderOut(nil)
+            guard let window else { return }
+            if let parent, window.sheetParent === parent { parent.endSheet(window) }
+            window.orderOut(nil)
+            open.removeAll { $0 === window }
+            completion(outcome)
         })
         let panel = NSWindow(contentViewController: hosting)
         panel.title = spec.title // hidden visually, but shown in window lists
@@ -113,10 +123,15 @@ enum Dialog {
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.isReleasedWhenClosed = false
-        panel.center()
         window = panel
+        open.append(panel)
 
-        NSApp.runModal(for: panel)
-        return result
+        if let parent {
+            parent.beginSheet(panel)
+        } else {
+            panel.level = .floating
+            panel.center()
+            panel.makeKeyAndOrderFront(nil)
+        }
     }
 }

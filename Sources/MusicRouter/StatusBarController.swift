@@ -334,31 +334,43 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func chooseCustomURL() {
         let current = Config.replacement.flatMap { Config.isWebURL($0) ? $0 : nil } ?? ""
-        let result = Dialog.run(DialogSpec(
+        Dialog.present(DialogSpec(
             symbol: "link",
             color: .blue,
             title: "Custom Replacement URL",
             message: "Opened instead of Music.app, e.g. a web player not in the list.",
             primary: "Set",
             field: .init(placeholder: "https://example.com/player", initial: current, validate: Config.urlError)
-        ))
-        guard result.accepted else { return }
-        Config.replacement = result.text
+        ), relativeTo: visibleSettingsWindow) { [weak self] result in
+            guard result.accepted else { return }
+            Config.replacement = result.text
+            self?.settings.model.refresh()
+        }
+    }
+
+    /// The Settings window when it's on screen, so dialogs can sheet onto it.
+    private var visibleSettingsWindow: NSWindow? {
+        guard let window = settings.window, window.isVisible else { return nil }
+        return window
     }
 
     /// Clears both TCC grants (they go stale when the signing identity changes)
     /// and `hasRequestedPermissions`, then relaunches so the OS re-evaluates.
     @objc private func resetPermissions() {
-        let confirmed = Dialog.run(DialogSpec(
+        Dialog.present(DialogSpec(
             symbol: "lock.rotation",
             color: .red,
             title: "Reset Permissions?",
             message: "Clears the Input Monitoring and Accessibility / Device Control grants for Music Router and relaunches it so you can grant them again.",
             primary: "Reset",
             destructive: true
-        )).accepted
-        guard confirmed else { return }
+        ), relativeTo: visibleSettingsWindow) { result in
+            guard result.accepted else { return }
+            Self.clearGrantsAndRelaunch()
+        }
+    }
 
+    private static func clearGrantsAndRelaunch() {
         for service in ["ListenEvent", "Accessibility"] {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
