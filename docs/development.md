@@ -75,7 +75,7 @@ runtime` need adding.
 
 `third_party/mediaremote-adapter/` is an unmodified copy of
 [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter)
-v0.7.7 (BSD 3-Clause, © 2025 Jonas van den Berg and contributors; license in
+v0.8.0 (BSD 3-Clause, © 2025 Jonas van den Berg and contributors; license in
 `third_party/mediaremote-adapter/LICENSE`, also shipped inside the app). Only
 the test client source is omitted. To update by hand, run
 `scripts/update-adapter.sh <tag>`.
