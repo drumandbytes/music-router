@@ -6,11 +6,13 @@
 #import <Foundation/Foundation.h>
 
 #import "MediaRemoteAdapter.h"
+#import "adapter/commands.h"
 #import "adapter/env.h"
 #import "adapter/globals.h"
 #import "adapter/keys.h"
 #import "adapter/now_playing.h"
 #import "private/MediaRemote.h"
+#import "test/NowPlayingTest.h"
 #import "utility/Debounce.h"
 #import "utility/helpers.h"
 
@@ -164,8 +166,7 @@ extern void adapter_stream() {
     NSString *no_artwork_option = getEnvOption(@"no-artwork");
     NSString *micros_option = getEnvOption(@"micros");
     NSString *human_readable_option = getEnvOption(@"human-readable");
-    NSString *allow_missing_title_option =
-        getEnvOption(@"allow-missing-title");
+    NSString *allow_missing_title_option = getEnvOption(@"allow-missing-title");
 
     // This option is needed for media players which, when changing tracks,
     // update the artist and/or other fields later than e.g. the title, the
@@ -202,7 +203,11 @@ extern void adapter_stream() {
     // client with a PID and a playback state. Without this option such a
     // session is indistinguishable from "nothing is playing", even though
     // Control Center shows it, using the application name as the label.
-    __block const bool allow_missing_title = (allow_missing_title_option != nil);
+    __block const bool allow_missing_title =
+        (allow_missing_title_option != nil);
+
+    // The following functions must only be called from the global serial
+    // dispatch queue, so that they are synchronized to prevent data races.
 
     void (^localPrintData)(NSDictionary *) = ^(NSDictionary *data) {
       printData(data, !no_diff, human_readable);
@@ -223,7 +228,11 @@ extern void adapter_stream() {
       }
     };
 
-    void (^internalHandle)(bool) = ^(bool updatedStats) {
+    __block bool hasUpdatedStats = NO;
+
+    void (^handle)() = ^() {
+      bool updatedStats = hasUpdatedStats;
+      hasUpdatedStats = NO;
       if (peculiar_debounce == nil ||
           ![peculiar_bundle_id isEqual:liveData[kMRABundleIdentifier]]) {
           directHandle();
@@ -247,20 +256,35 @@ extern void adapter_stream() {
       }
     };
 
-    void (^handle)() = ^() {
-      internalHandle(false);
+    __block NSInteger pendingCallbacks = 0;
+
+    void (^enter)() = ^{
+      pendingCallbacks += 1;
     };
 
-    void (^handleWithUpdatedStats)() = ^() {
-      internalHandle(true);
+    void (^leave)() = ^{
+      pendingCallbacks -= 1;
+      assert(pendingCallbacks >= 0);
+      if (pendingCallbacks == 0) {
+          handle();
+      }
     };
 
-    void (^requestNowPlayingApplicationPID)() = ^{
+    void (^dispatchAndHandle)(void (^)(void)) = ^(void (^block)(void)) {
+      enter();
+      dispatch_async(g_serialdispatchQueue, ^{
+        block();
+        leave();
+      });
+    };
+
+    void (^requestNowPlayingApplicationProcessAndBundleIdentifier)() = ^{
+      enter();
       g_mediaRemote.getNowPlayingApplicationPID(
           g_serialdispatchQueue, ^(int pid) {
             if (pid == 0) {
                 liveData[kMRAProcessIdentifier] = nil;
-                handle();
+                leave();
                 return;
             }
             liveData[kMRAProcessIdentifier] = @(pid);
@@ -268,19 +292,19 @@ extern void adapter_stream() {
               if (process.bundleIdentifier != nil) {
                   liveData[kMRABundleIdentifier] = process.bundleIdentifier;
               }
-              handle();
             });
-            if (!ok) {
-                handle();
-            }
+            leave();
           });
     };
 
     void (^requestNowPlayingParentApplicationBundleIdentifier)() = ^{
+      enter();
       g_mediaRemote.getNowPlayingClient(g_serialdispatchQueue, ^(id client) {
         NSString *parentAppBundleID = nil;
-        if (client && [client respondsToSelector:@selector
-                              (parentApplicationBundleIdentifier)]) {
+        if (client &&
+            [client
+                respondsToSelector:@selector(
+                                       parentApplicationBundleIdentifier)]) {
             id result = [client
                 performSelector:@selector(parentApplicationBundleIdentifier)];
             if ([result isKindOfClass:[NSString class]]) {
@@ -292,27 +316,41 @@ extern void adapter_stream() {
         } else {
             [liveData removeObjectForKey:kMRAParentApplicationBundleIdentifier];
         }
-        handle();
+        leave();
       });
     };
 
     void (^requestNowPlayingApplicationIsPlaying)() = ^{
+      enter();
       g_mediaRemote.getNowPlayingApplicationIsPlaying(
           g_serialdispatchQueue, ^(bool isPlaying) {
             liveData[kMRAPlaying] = @(isPlaying);
-            handle();
+            leave();
           });
     };
 
+    void (^requestSupportedCommands)() = ^{
+      if (g_mediaRemote.copySupportedCommands &&
+          g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+          enter();
+          g_mediaRemote.copySupportedCommands(
+              g_serialdispatchQueue, ^(NSArray *commands) {
+                liveData[kMRASupportedCommands] =
+                    convertSupportedCommandsList(commands);
+                leave();
+              });
+      }
+    };
+
     void (^requestNowPlayingInfo)() = ^{
+      enter();
       g_mediaRemote.getNowPlayingInfo(g_serialdispatchQueue, ^(
                                           NSDictionary *information) {
         NSString *serviceIdentifier =
             information[kMRMediaRemoteNowPlayingInfoServiceIdentifier];
         if (!isTestMode &&
-            [serviceIdentifier
-                isEqualToString:
-                    @"com.vandenbe.MediaRemoteAdapter.TestClient"]) {
+            [serviceIdentifier isEqualToString:@(TEST_CLIENT_BUNDLE_ID)]) {
+            leave();
             return;
         }
         NSMutableDictionary *converted = convertNowPlayingInformation(
@@ -331,6 +369,9 @@ extern void adapter_stream() {
         if (liveData[kMRAPlaying] != nil) {
             converted[kMRAPlaying] = liveData[kMRAPlaying];
         }
+        if (liveData[kMRASupportedCommands] != nil) {
+            converted[kMRASupportedCommands] = liveData[kMRASupportedCommands];
+        }
         // Use the old artwork data, since often the MediaRemote framework
         // unloads the artwork and then loads it again shortly after.
         // Only do this when the items have the same identity.
@@ -348,18 +389,23 @@ extern void adapter_stream() {
 
         liveDataStats = compareIdentifyingTrackKeys(liveData, converted);
         [liveData setDictionary:converted];
-        handleWithUpdatedStats();
+        hasUpdatedStats = true;
+        leave();
       });
     };
 
     void (^requestAll)() = ^{
-      requestNowPlayingApplicationPID();
+      requestNowPlayingApplicationProcessAndBundleIdentifier();
       requestNowPlayingParentApplicationBundleIdentifier();
       requestNowPlayingApplicationIsPlaying();
+      requestSupportedCommands();
       requestNowPlayingInfo();
     };
 
     void (^resetAll)() = ^{
+      // Make sure there is a pending callback, otherwise this change won't be
+      // reflected in the command output. This should always be the case.
+      assert(pendingCallbacks > 0);
       [liveData removeAllObjects];
     };
 
@@ -368,9 +414,10 @@ extern void adapter_stream() {
       requestAll();
     };
 
-    // FIXME Is this foolproof? This continues and registers observers
-    // which might intervene with the initial requests.
-    requestAll();
+    // Initial fetch.
+    dispatchAndHandle(^{
+      requestAll();
+    });
 
     NSNotificationCenter *default_center = [NSNotificationCenter defaultCenter];
     NSNotificationCenter *shared_workscape_notification_center =
@@ -378,21 +425,21 @@ extern void adapter_stream() {
 
     // TODO Refactor the below two callbacks. They share a lot of code.
 
+    // Register notifications for playing state changes.
     id is_playing_change_observer = [default_center
         addObserverForName:
             kMRMediaRemoteNowPlayingApplicationIsPlayingDidChangeNotification
                     object:nil
                      queue:nil
                 usingBlock:^(NSNotification *notification) {
-                  dispatch_async(g_serialdispatchQueue, ^() {
+                  dispatchAndHandle(^() {
                     appForNotification(notification, ^(
                                            NSRunningApplication *process) {
                       if (process == nil) {
                           // The process for this notification could not be
                           // determined. Assume that there is no now playing
-                          // application anymore.
+                          // application anymore, so reset and return.
                           resetAll();
-                          handle();
                           return;
                       }
                       id isPlayingValue =
@@ -414,18 +461,22 @@ extern void adapter_stream() {
                           // This is a different process, reset all data.
                           resetAll();
                       }
+                      liveData[kMRAProcessIdentifier] =
+                          @(process.processIdentifier);
                       liveData[kMRABundleIdentifier] = process.bundleIdentifier;
                       requestNowPlayingParentApplicationBundleIdentifier();
                       liveData[kMRAPlaying] = @([isPlayingValue boolValue]);
+                      if (liveData[kMRASupportedCommands] == nil) {
+                          requestSupportedCommands();
+                      }
                       if (liveData[kMRATitle] == nil) {
                           requestNowPlayingInfo();
-                      } else {
-                          handle();
                       }
                     });
                   });
                 }];
 
+    // Register notifications for now playing information changes.
     id info_change_observer = [default_center
         addObserverForName:kMRMediaRemoteNowPlayingInfoDidChangeNotification
                     object:nil
@@ -434,41 +485,61 @@ extern void adapter_stream() {
                   [debounce call:^{
                     appForNotification(notification, ^(
                                            NSRunningApplication *process) {
-                      if (process == nil) {
-                          // The process for this notification could not be
-                          // determined. Assume that there is no now playing
-                          // application anymore.
-                          resetAll();
-                          handle();
-                          return;
-                      }
-                      if (liveData[kMRABundleIdentifier] != nil &&
-                          process.bundleIdentifier != nil &&
-                          ![liveData[kMRABundleIdentifier]
-                              isEqual:process.bundleIdentifier]) {
-                          // This is a different process, reset all data.
-                          resetAll();
-                      }
-                      if (liveData[kMRAProcessIdentifier] != nil &&
-                          ![liveData[kMRAProcessIdentifier]
-                              isEqual:@(process.processIdentifier)]) {
-                          // This is a different process, reset all data.
-                          resetAll();
-                      }
-                      if (liveData[kMRAProcessIdentifier] == nil) {
-                          requestNowPlayingApplicationPID();
-                      }
-                      if (liveData[kMRAParentApplicationBundleIdentifier] ==
-                          nil) {
-                          requestNowPlayingParentApplicationBundleIdentifier();
-                      }
-                      if (liveData[kMRAPlaying] == nil) {
-                          requestNowPlayingApplicationIsPlaying();
-                      }
-                      requestNowPlayingInfo();
+                      dispatchAndHandle(^() {
+                        if (process == nil) {
+                            // The process for this notification could not be
+                            // determined. Assume that there is no now playing
+                            // application anymore, so reset and return.
+                            resetAll();
+                            return;
+                        }
+                        if (liveData[kMRABundleIdentifier] != nil &&
+                            process.bundleIdentifier != nil &&
+                            ![liveData[kMRABundleIdentifier]
+                                isEqual:process.bundleIdentifier]) {
+                            // This is a different process, reset all data.
+                            resetAll();
+                        }
+                        if (liveData[kMRAProcessIdentifier] != nil &&
+                            ![liveData[kMRAProcessIdentifier]
+                                isEqual:@(process.processIdentifier)]) {
+                            // This is a different process, reset all data.
+                            resetAll();
+                        }
+                        if (liveData[kMRAProcessIdentifier] == nil ||
+                            liveData[kMRABundleIdentifier] == nil) {
+                            requestNowPlayingApplicationProcessAndBundleIdentifier();
+                        }
+                        if (liveData[kMRAParentApplicationBundleIdentifier] ==
+                            nil) {
+                            requestNowPlayingParentApplicationBundleIdentifier();
+                        }
+                        if (liveData[kMRAPlaying] == nil) {
+                            requestNowPlayingApplicationIsPlaying();
+                        }
+                        if (liveData[kMRASupportedCommands] == nil) {
+                            requestSupportedCommands();
+                        }
+                        requestNowPlayingInfo();
+                      });
                     });
                   }];
                 }];
+
+    // Register notifications for supported command changes.
+    id supported_commands_change_observer = nil;
+    if (g_mediaRemote.copySupportedCommands &&
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+        supported_commands_change_observer = [default_center
+            addObserverForName:
+                kMRMediaRemoteSupportedCommandsDidChangeNotification
+                        object:nil
+                         queue:nil
+                    usingBlock:^(NSNotification *notification) {
+                      (void)notification;
+                      dispatchAndHandle(requestSupportedCommands);
+                    }];
+    }
 
     // Register notifications for when applications are closed.
     id app_termination_observer = [shared_workscape_notification_center
@@ -476,7 +547,7 @@ extern void adapter_stream() {
                     object:nil
                      queue:nil
                 usingBlock:^(NSNotification *notification) {
-                  dispatch_async(g_serialdispatchQueue, ^() {
+                  dispatchAndHandle(^() {
                     NSDictionary *userInfo = [notification userInfo];
                     id bundleIdentifier =
                         userInfo[@"NSApplicationBundleIdentifier"];
@@ -490,13 +561,24 @@ extern void adapter_stream() {
                 }];
 
     g_mediaRemote.registerForNowPlayingNotifications(g_serialdispatchQueue);
+    if (g_mediaRemote.copySupportedCommands &&
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications(true);
+    }
 
     CFRunLoopRun();
 
     g_mediaRemote.unregisterForNowPlayingNotifications();
+    if (g_mediaRemote.copySupportedCommands &&
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications(false);
+    }
 
     [default_center removeObserver:is_playing_change_observer];
     [default_center removeObserver:info_change_observer];
+    if (supported_commands_change_observer != nil) {
+        [default_center removeObserver:supported_commands_change_observer];
+    }
     [shared_workscape_notification_center
         removeObserver:app_termination_observer];
 }
