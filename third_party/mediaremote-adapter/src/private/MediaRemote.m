@@ -5,6 +5,7 @@
 #include "MediaRemote.h"
 
 NSString *kMRMediaRemoteNowPlayingInfoDidChangeNotification = @"kMRMediaRemoteNowPlayingInfoDidChangeNotification";
+NSString *kMRMediaRemoteSupportedCommandsDidChangeNotification = @"kMRMediaRemoteSupportedCommandsDidChangeNotification";
 NSString *kMRMediaRemoteNowPlayingPlaybackQueueDidChangeNotification = @"kMRMediaRemoteNowPlayingPlaybackQueueDidChangeNotification";
 NSString *kMRMediaRemotePickableRoutesDidChangeNotification = @"kMRMediaRemotePickableRoutesDidChangeNotification";
 NSString *kMRMediaRemoteNowPlayingApplicationDidChangeNotification = @"kMRMediaRemoteNowPlayingApplicationDidChangeNotification";
@@ -79,6 +80,12 @@ CFStringRef MRNowPlayingClientGetProcessIdentifier = CFSTR("MRNowPlayingClientGe
 CFStringRef MRMediaRemoteGetLocalOrigin = CFSTR("MRMediaRemoteGetLocalOrigin");
 CFStringRef MRNowPlayingPlayerPathCreate = CFSTR("MRNowPlayingPlayerPathCreate");
 CFStringRef MRMediaRemoteGetNowPlayingInfoForPlayer = CFSTR("MRMediaRemoteGetNowPlayingInfoForPlayer");
+CFStringRef MRMediaRemoteGetSupportedCommandsForPlayer = CFSTR("MRMediaRemoteGetSupportedCommandsForPlayer");
+
+CFStringRef MRMediaRemoteCopySupportedCommands = CFSTR("MRMediaRemoteCopySupportedCommands");
+CFStringRef MRMediaRemoteCommandInfoGetCommand = CFSTR("MRMediaRemoteCommandInfoGetCommand");
+CFStringRef MRMediaRemoteCommandInfoGetEnabled = CFSTR("MRMediaRemoteCommandInfoGetEnabled");
+CFStringRef MRMediaRemoteCommandInfoCopyValueForKey = CFSTR("MRMediaRemoteCommandInfoCopyValueForKey");
 
 NSString *kMRNowPlayingClientUserInfoKey = @"kMRNowPlayingClientUserInfoKey";
 
@@ -92,6 +99,7 @@ static NSString *MediaRemoteFrameworkBundleURL = @"/System/Library/PrivateFramew
 @synthesize setRepeatMode;
 @synthesize registerForNowPlayingNotifications;
 @synthesize unregisterForNowPlayingNotifications;
+@synthesize setWantsSupportedCommandsChangedNotifications;
 @synthesize getNowPlayingApplicationPID;
 @synthesize getNowPlayingClient;
 @synthesize getNowPlayingInfo;
@@ -103,6 +111,11 @@ static NSString *MediaRemoteFrameworkBundleURL = @"/System/Library/PrivateFramew
 @synthesize getLocalOrigin;
 @synthesize nowPlayingPlayerPathCreate;
 @synthesize getNowPlayingInfoForPlayer;
+@synthesize getSupportedCommandsForPlayer;
+@synthesize copySupportedCommands;
+@synthesize commandInfoGetCommand;
+@synthesize commandInfoGetEnabled;
+@synthesize commandInfoCopyValueForKey;
 -(id)init
 {
     if (!(self = [super init])) {
@@ -120,6 +133,7 @@ static NSString *MediaRemoteFrameworkBundleURL = @"/System/Library/PrivateFramew
     setRepeatMode = (MRMediaRemoteSetRepeatMode_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteSetRepeatMode);
     registerForNowPlayingNotifications = (MRMediaRemoteRegisterForNowPlayingNotifications_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteRegisterForNowPlayingNotifications);
     unregisterForNowPlayingNotifications = (MRMediaRemoteUnregisterForNowPlayingNotifications_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteUnregisterForNowPlayingNotifications);
+    setWantsSupportedCommandsChangedNotifications = (MRMediaRemoteSetWantsSupportedCommandsChangedNotifications_t)CFBundleGetFunctionPointerForName(bundle, CFSTR("MRMediaRemoteSetWantsSupportedCommandsChangedNotifications"));
     getNowPlayingApplicationPID = (MRMediaRemoteGetNowPlayingApplicationPID_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetNowPlayingApplicationPID);
     getNowPlayingClient = (MRMediaRemoteGetNowPlayingClient_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetNowPlayingClient);
     getNowPlayingInfo = (MRMediaRemoteGetNowPlayingInfo_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetNowPlayingInfo);
@@ -130,7 +144,12 @@ static NSString *MediaRemoteFrameworkBundleURL = @"/System/Library/PrivateFramew
     getLocalOrigin = (MRMediaRemoteGetLocalOrigin_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetLocalOrigin);
     nowPlayingPlayerPathCreate = (MRNowPlayingPlayerPathCreate_t)CFBundleGetFunctionPointerForName(bundle, MRNowPlayingPlayerPathCreate);
     getNowPlayingInfoForPlayer = (MRMediaRemoteGetNowPlayingInfoForPlayer_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetNowPlayingInfoForPlayer);
+    getSupportedCommandsForPlayer = (MRMediaRemoteGetSupportedCommandsForPlayer_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetSupportedCommandsForPlayer);
     getPlaybackStateForPlayer = (MRMediaRemoteGetPlaybackStateForPlayer_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteGetPlaybackStateForPlayer);
+    copySupportedCommands = (MRMediaRemoteCopySupportedCommands_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteCopySupportedCommands);
+    commandInfoGetCommand = (MRMediaRemoteCommandInfoGetCommand_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteCommandInfoGetCommand);
+    commandInfoGetEnabled = (MRMediaRemoteCommandInfoGetEnabled_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteCommandInfoGetEnabled);
+    commandInfoCopyValueForKey = (MRMediaRemoteCommandInfoCopyValueForKey_t)CFBundleGetFunctionPointerForName(bundle, MRMediaRemoteCommandInfoCopyValueForKey);
     return self;
 }
 @end

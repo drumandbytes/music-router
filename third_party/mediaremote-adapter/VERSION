@@ -1,5 +1,5 @@
 upstream: https://github.com/ungive/mediaremote-adapter
-tag: v0.8.0
-commit: 65714990277cb4d0415ebaf7fff6be3229362b28
+tag: v0.9.0
+commit: 2ef957c736256cee7905c9f3f1c7e279087bf195
 license: BSD-3-Clause (see LICENSE)
-local changes: none; src/test (test client) omitted
+local changes: none; src/test reduced to NowPlayingTest.h (test client not built)

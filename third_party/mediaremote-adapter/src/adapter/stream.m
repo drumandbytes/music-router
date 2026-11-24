@@ -6,6 +6,7 @@
 #import <Foundation/Foundation.h>
 
 #import "MediaRemoteAdapter.h"
+#import "adapter/commands.h"
 #import "adapter/env.h"
 #import "adapter/globals.h"
 #import "adapter/keys.h"
@@ -277,7 +278,7 @@ extern void adapter_stream() {
       });
     };
 
-    void (^requestNowPlayingApplicationPID)() = ^{
+    void (^requestNowPlayingApplicationProcessAndBundleIdentifier)() = ^{
       enter();
       g_mediaRemote.getNowPlayingApplicationPID(
           g_serialdispatchQueue, ^(int pid) {
@@ -328,6 +329,19 @@ extern void adapter_stream() {
           });
     };
 
+    void (^requestSupportedCommands)() = ^{
+      if (g_mediaRemote.copySupportedCommands &&
+          g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+          enter();
+          g_mediaRemote.copySupportedCommands(
+              g_serialdispatchQueue, ^(NSArray *commands) {
+                liveData[kMRASupportedCommands] =
+                    convertSupportedCommandsList(commands);
+                leave();
+              });
+      }
+    };
+
     void (^requestNowPlayingInfo)() = ^{
       enter();
       g_mediaRemote.getNowPlayingInfo(g_serialdispatchQueue, ^(
@@ -355,6 +369,9 @@ extern void adapter_stream() {
         if (liveData[kMRAPlaying] != nil) {
             converted[kMRAPlaying] = liveData[kMRAPlaying];
         }
+        if (liveData[kMRASupportedCommands] != nil) {
+            converted[kMRASupportedCommands] = liveData[kMRASupportedCommands];
+        }
         // Use the old artwork data, since often the MediaRemote framework
         // unloads the artwork and then loads it again shortly after.
         // Only do this when the items have the same identity.
@@ -378,9 +395,10 @@ extern void adapter_stream() {
     };
 
     void (^requestAll)() = ^{
-      requestNowPlayingApplicationPID();
+      requestNowPlayingApplicationProcessAndBundleIdentifier();
       requestNowPlayingParentApplicationBundleIdentifier();
       requestNowPlayingApplicationIsPlaying();
+      requestSupportedCommands();
       requestNowPlayingInfo();
     };
 
@@ -407,6 +425,7 @@ extern void adapter_stream() {
 
     // TODO Refactor the below two callbacks. They share a lot of code.
 
+    // Register notifications for playing state changes.
     id is_playing_change_observer = [default_center
         addObserverForName:
             kMRMediaRemoteNowPlayingApplicationIsPlayingDidChangeNotification
@@ -442,9 +461,14 @@ extern void adapter_stream() {
                           // This is a different process, reset all data.
                           resetAll();
                       }
+                      liveData[kMRAProcessIdentifier] =
+                          @(process.processIdentifier);
                       liveData[kMRABundleIdentifier] = process.bundleIdentifier;
                       requestNowPlayingParentApplicationBundleIdentifier();
                       liveData[kMRAPlaying] = @([isPlayingValue boolValue]);
+                      if (liveData[kMRASupportedCommands] == nil) {
+                          requestSupportedCommands();
+                      }
                       if (liveData[kMRATitle] == nil) {
                           requestNowPlayingInfo();
                       }
@@ -452,6 +476,7 @@ extern void adapter_stream() {
                   });
                 }];
 
+    // Register notifications for now playing information changes.
     id info_change_observer = [default_center
         addObserverForName:kMRMediaRemoteNowPlayingInfoDidChangeNotification
                     object:nil
@@ -481,8 +506,9 @@ extern void adapter_stream() {
                             // This is a different process, reset all data.
                             resetAll();
                         }
-                        if (liveData[kMRAProcessIdentifier] == nil) {
-                            requestNowPlayingApplicationPID();
+                        if (liveData[kMRAProcessIdentifier] == nil ||
+                            liveData[kMRABundleIdentifier] == nil) {
+                            requestNowPlayingApplicationProcessAndBundleIdentifier();
                         }
                         if (liveData[kMRAParentApplicationBundleIdentifier] ==
                             nil) {
@@ -491,11 +517,29 @@ extern void adapter_stream() {
                         if (liveData[kMRAPlaying] == nil) {
                             requestNowPlayingApplicationIsPlaying();
                         }
+                        if (liveData[kMRASupportedCommands] == nil) {
+                            requestSupportedCommands();
+                        }
                         requestNowPlayingInfo();
                       });
                     });
                   }];
                 }];
+
+    // Register notifications for supported command changes.
+    id supported_commands_change_observer = nil;
+    if (g_mediaRemote.copySupportedCommands &&
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+        supported_commands_change_observer = [default_center
+            addObserverForName:
+                kMRMediaRemoteSupportedCommandsDidChangeNotification
+                        object:nil
+                         queue:nil
+                    usingBlock:^(NSNotification *notification) {
+                      (void)notification;
+                      dispatchAndHandle(requestSupportedCommands);
+                    }];
+    }
 
     // Register notifications for when applications are closed.
     id app_termination_observer = [shared_workscape_notification_center
@@ -517,13 +561,24 @@ extern void adapter_stream() {
                 }];
 
     g_mediaRemote.registerForNowPlayingNotifications(g_serialdispatchQueue);
+    if (g_mediaRemote.copySupportedCommands &&
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications(true);
+    }
 
     CFRunLoopRun();
 
     g_mediaRemote.unregisterForNowPlayingNotifications();
+    if (g_mediaRemote.copySupportedCommands &&
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications) {
+        g_mediaRemote.setWantsSupportedCommandsChangedNotifications(false);
+    }
 
     [default_center removeObserver:is_playing_change_observer];
     [default_center removeObserver:info_change_observer];
+    if (supported_commands_change_observer != nil) {
+        [default_center removeObserver:supported_commands_change_observer];
+    }
     [shared_workscape_notification_center
         removeObserver:app_termination_observer];
 }

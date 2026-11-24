@@ -5,6 +5,7 @@
 #import <dispatch/dispatch.h>
 
 #import "MediaRemoteAdapter.h"
+#import "adapter/commands.h"
 #import "adapter/env.h"
 #import "adapter/get.h"
 #import "adapter/globals.h"
@@ -38,7 +39,7 @@ static NSArray *internal_get_for_bundle(NSString *bundleIdentifier) {
     if (!mr.getNowPlayingClients || !mr.nowPlayingClientGetBundleIdentifier ||
         !mr.nowPlayingClientGetProcessIdentifier || !mr.getLocalOrigin ||
         !mr.nowPlayingPlayerPathCreate || !mr.getNowPlayingInfoForPlayer ||
-        !mr.getPlaybackStateForPlayer) {
+        !mr.getSupportedCommandsForPlayer || !mr.getPlaybackStateForPlayer) {
         fail(@"Reading a specific application is not supported on this system");
     }
 
@@ -64,8 +65,9 @@ static NSArray *internal_get_for_bundle(NSString *bundleIdentifier) {
         NSString *clientBundleID =
             (__bridge NSString *)mr.nowPlayingClientGetBundleIdentifier(client);
         NSString *parentBundleID = nil;
-        if ([client respondsToSelector:@selector
-                    (parentApplicationBundleIdentifier)]) {
+        if ([client
+                respondsToSelector:@selector(
+                                       parentApplicationBundleIdentifier)]) {
             parentBundleID = [client
                 performSelector:@selector(parentApplicationBundleIdentifier)];
         }
@@ -86,6 +88,7 @@ static NSArray *internal_get_for_bundle(NSString *bundleIdentifier) {
         }
 
         __block NSDictionary *information = nil;
+        __block NSArray *supportedCommands = nil;
         __block unsigned int playbackState = 0;
         dispatch_group_t group = dispatch_group_create();
         dispatch_group_enter(group);
@@ -95,6 +98,12 @@ static NSArray *internal_get_for_bundle(NSString *bundleIdentifier) {
                                         information = [result copy];
                                         dispatch_group_leave(group);
                                       });
+        dispatch_group_enter(group);
+        mr.getSupportedCommandsForPlayer(
+            playerPath, g_serialdispatchQueue, ^(NSArray *commands) {
+              supportedCommands = convertSupportedCommandsList(commands);
+              dispatch_group_leave(group);
+            });
         dispatch_group_enter(group);
         mr.getPlaybackStateForPlayer(playerPath, g_serialdispatchQueue,
                                      ^(unsigned int state) {
@@ -129,6 +138,9 @@ static NSArray *internal_get_for_bundle(NSString *bundleIdentifier) {
                                                information, convert_micros,
                                                calculate_now, no_artwork)];
         }
+        if (supportedCommands) {
+            data[kMRASupportedCommands] = supportedCommands;
+        }
         // Ask the player for its playback state instead of deriving it from
         // the playback rate in the metadata, which some applications, like
         // Spotify, do not set. 1 is MRPlaybackStatePlaying.
@@ -161,7 +173,7 @@ NSDictionary *internal_get(BOOL isTestMode) {
 
     dispatch_group_t group = dispatch_group_create();
 
-    // PID and Bundle Identifier
+    // Process and bundle identifier.
     dispatch_group_enter(group);
     g_mediaRemote.getNowPlayingApplicationPID(
         g_serialdispatchQueue, ^(int pid) {
@@ -181,12 +193,13 @@ NSDictionary *internal_get(BOOL isTestMode) {
           }
         });
 
-    // Now Playing Client
+    // Parent application bundle identifier.
     dispatch_group_enter(group);
     g_mediaRemote.getNowPlayingClient(g_serialdispatchQueue, ^(id client) {
       NSString *parentAppBundleID = nil;
-      if (client && [client respondsToSelector:@selector
-                            (parentApplicationBundleIdentifier)]) {
+      if (client &&
+          [client respondsToSelector:@selector(
+                                         parentApplicationBundleIdentifier)]) {
           parentAppBundleID = [client
               performSelector:@selector(parentApplicationBundleIdentifier)];
       }
@@ -196,7 +209,7 @@ NSDictionary *internal_get(BOOL isTestMode) {
       dispatch_group_leave(group);
     });
 
-    // Is Playing
+    // Playing state.
     dispatch_group_enter(group);
     g_mediaRemote.getNowPlayingApplicationIsPlaying(
         g_serialdispatchQueue, ^(bool isPlaying) {
@@ -204,6 +217,7 @@ NSDictionary *internal_get(BOOL isTestMode) {
           dispatch_group_leave(group);
         });
 
+    // Now playing information.
     dispatch_group_enter(group);
     g_mediaRemote.getNowPlayingInfo(
         g_serialdispatchQueue, ^(NSDictionary *information) {
@@ -220,6 +234,17 @@ NSDictionary *internal_get(BOOL isTestMode) {
           [liveData addEntriesFromDictionary:converted];
           dispatch_group_leave(group);
         });
+
+    // Supported commands.
+    if (g_mediaRemote.copySupportedCommands) {
+        dispatch_group_enter(group);
+        g_mediaRemote.copySupportedCommands(
+            g_serialdispatchQueue, ^(NSArray *commands) {
+              liveData[kMRASupportedCommands] =
+                  convertSupportedCommandsList(commands);
+              dispatch_group_leave(group);
+            });
+    }
 
     // Wait for all async callbacks or timeout
     dispatch_time_t timeout =

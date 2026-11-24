@@ -1,5 +1,5 @@
 #!/bin/bash
-# Swaps third_party/mediaremote-adapter for upstream tag $1 (no test client) and
+# Swaps third_party/mediaremote-adapter for upstream tag $1 (test client reduced to its header) and
 # rewrites VERSION and the version named in the docs. Doesn't commit.
 # Usage: scripts/update-adapter.sh <tag>
 set -euo pipefail
@@ -24,14 +24,16 @@ done
 
 rm -rf "${DEST:?}/src" "${DEST:?}/include" "${DEST:?}/bin" "${DEST:?}/LICENSE"
 cp -R "$WORK/upstream/src" "$WORK/upstream/include" "$WORK/upstream/bin" "$WORK/upstream/LICENSE" "$DEST/"
-rm -rf "$DEST/src/test"
+# get.m/stream.m import test/NowPlayingTest.h for TEST_CLIENT_BUNDLE_ID; the
+# test client itself (.m files, main) is not built, so keep only the header
+find "$DEST/src/test" -type f ! -name NowPlayingTest.h -delete
 
 cat > "$DEST/VERSION" <<VERSION
 upstream: https://github.com/ungive/mediaremote-adapter
 tag: $TAG
 commit: $COMMIT
 license: BSD-3-Clause (see LICENSE)
-local changes: none; src/test (test client) omitted
+local changes: none; src/test reduced to NowPlayingTest.h (test client not built)
 VERSION
 
 # the docs name the pinned version (how-it-works, development)

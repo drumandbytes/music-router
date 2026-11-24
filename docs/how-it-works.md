@@ -42,7 +42,7 @@ framework, which since macOS 15.4 only answers Apple-signed processes. It
 uses the [`mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter)
 technique: `/usr/bin/perl` (signed `com.apple.perl5`) runs the adapter's
 script, which loads a small bundled framework and calls MediaRemote from
-inside that entitled process. A pinned copy (v0.8.0, BSD-3) is vendored under
+inside that entitled process. A pinned copy (v0.9.0, BSD-3) is vendored under
 `third_party/mediaremote-adapter/`, built into the app by `scripts/build-app.sh`,
 and bundled in the app (`Contents/Frameworks`, `Contents/Resources`), so
 there's no separate install. It runs once as a long-lived background process

@@ -8,6 +8,7 @@
 #pragma mark Notifications
 
 extern NSString *kMRMediaRemoteNowPlayingInfoDidChangeNotification;
+extern NSString *kMRMediaRemoteSupportedCommandsDidChangeNotification;
 extern NSString *kMRMediaRemoteNowPlayingPlaybackQueueDidChangeNotification;
 extern NSString *kMRMediaRemotePickableRoutesDidChangeNotification;
 extern NSString *kMRMediaRemoteNowPlayingApplicationDidChangeNotification;
@@ -117,6 +118,7 @@ extern CFStringRef MRMediaRemoteGetNowPlayingApplicationIsPlaying;
 
 typedef void (*MRMediaRemoteRegisterForNowPlayingNotifications_t)(dispatch_queue_t queue);
 typedef void (*MRMediaRemoteUnregisterForNowPlayingNotifications_t)();
+typedef void (*MRMediaRemoteSetWantsSupportedCommandsChangedNotifications_t)(Boolean wants);
 
 typedef void (^MRMediaRemoteGetNowPlayingInfoCompletion_t)(NSDictionary *information);
 typedef void (^MRMediaRemoteGetNowPlayingApplicationPIDCompletion_t)(int PID);
@@ -127,6 +129,10 @@ typedef void (*MRMediaRemoteGetNowPlayingApplicationPID_t)(dispatch_queue_t queu
 typedef void (*MRMediaRemoteGetNowPlayingClient_t)(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingClientCompletion_t completion);
 typedef void (*MRMediaRemoteGetNowPlayingInfo_t)(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingInfoCompletion_t completion);
 typedef void (*MRMediaRemoteGetNowPlayingApplicationIsPlaying_t)(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingApplicationIsPlayingCompletion_t completion);
+typedef void (*MRMediaRemoteCopySupportedCommands_t)(dispatch_queue_t queue, void (^completion)(NSArray *commands));
+typedef int (*MRMediaRemoteCommandInfoGetCommand_t)(id command);
+typedef Boolean (*MRMediaRemoteCommandInfoGetEnabled_t)(id command);
+typedef CFTypeRef (*MRMediaRemoteCommandInfoCopyValueForKey_t)(id command, CFStringRef key);
 
 // Per-client access. Every application that registered with MediaRemote is a
 // "now playing client", not only the one the system elected as the now playing
@@ -149,6 +155,7 @@ typedef void (^MRMediaRemoteGetNowPlayingClientsCompletion_t)(NSArray *clients);
 // (MRNowPlayingArtworkImage) when artwork was requested and is available,
 // otherwise nil. A failed request yields nil information.
 typedef void (^MRMediaRemoteGetNowPlayingInfoForPlayerCompletion_t)(NSDictionary *information, id artwork);
+typedef void (^MRMediaRemoteGetSupportedCommandsForPlayerCompletion_t)(NSArray *commands);
 
 typedef void (*MRMediaRemoteGetNowPlayingClients_t)(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingClientsCompletion_t completion);
 typedef CFStringRef (*MRNowPlayingClientGetBundleIdentifier_t)(id client);
@@ -159,6 +166,7 @@ typedef CFTypeRef (*MRNowPlayingPlayerPathCreate_t)(id origin, id client, id pla
 // MRMediaRemoteGetNowPlayingInfo does. Without it, the information contains
 // the artwork MIME type, but no artwork data.
 typedef void (*MRMediaRemoteGetNowPlayingInfoForPlayer_t)(id playerPath, bool includeArtwork, dispatch_queue_t queue, MRMediaRemoteGetNowPlayingInfoForPlayerCompletion_t completion);
+typedef void (*MRMediaRemoteGetSupportedCommandsForPlayer_t)(id playerPath, dispatch_queue_t queue, MRMediaRemoteGetSupportedCommandsForPlayerCompletion_t completion);
 
 #pragma mark Miscellaneous
 
@@ -183,6 +191,7 @@ extern NSString *kMRNowPlayingClientUserInfoKey;
 // Observers
 @property(readonly) MRMediaRemoteRegisterForNowPlayingNotifications_t registerForNowPlayingNotifications;
 @property(readonly) MRMediaRemoteUnregisterForNowPlayingNotifications_t unregisterForNowPlayingNotifications;
+@property(readonly) MRMediaRemoteSetWantsSupportedCommandsChangedNotifications_t setWantsSupportedCommandsChangedNotifications;
 // Metadata
 @property(readonly) MRMediaRemoteGetNowPlayingApplicationPID_t getNowPlayingApplicationPID;
 @property(readonly) MRMediaRemoteGetNowPlayingClient_t getNowPlayingClient;
@@ -196,6 +205,11 @@ extern NSString *kMRNowPlayingClientUserInfoKey;
 @property(readonly) MRMediaRemoteGetLocalOrigin_t getLocalOrigin;
 @property(readonly) MRNowPlayingPlayerPathCreate_t nowPlayingPlayerPathCreate;
 @property(readonly) MRMediaRemoteGetNowPlayingInfoForPlayer_t getNowPlayingInfoForPlayer;
+@property(readonly) MRMediaRemoteGetSupportedCommandsForPlayer_t getSupportedCommandsForPlayer;
+@property(readonly) MRMediaRemoteCopySupportedCommands_t copySupportedCommands;
+@property(readonly) MRMediaRemoteCommandInfoGetCommand_t commandInfoGetCommand;
+@property(readonly) MRMediaRemoteCommandInfoGetEnabled_t commandInfoGetEnabled;
+@property(readonly) MRMediaRemoteCommandInfoCopyValueForKey_t commandInfoCopyValueForKey;
 // Constructor
 -(id)init;
 @end
