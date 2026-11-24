@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/drumandbytes/music-router/compare/v1.1.3...v1.1.4) (2026-11-24)
+
+
+### Bug Fixes
+
+* **adapter:** update mediaremote-adapter to v0.9.0 ([#60](https://github.com/drumandbytes/music-router/issues/60)) ([e245b50](https://github.com/drumandbytes/music-router/commit/e245b50d8593dd6bc981d0628020e5a2d64d8df2))
+
 ## [1.1.3](https://github.com/drumandbytes/music-router/compare/v1.1.2...v1.1.3) (2026-11-17)
 
 
